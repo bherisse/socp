@@ -10,8 +10,8 @@ add_library(socp ${Source_Files} ${Header_Files})
 include(ExternalProject)
 externalproject_add(CMinPack
 					#SVN_REPOSITORY https://github.com/devernay/cminpack/trunk
-					SVN_REPOSITORY https://github.com/bherisse/cminpack/branches/patch-1
-					#URL ${CMAKE_SOURCE_DIR}/extDep/cminpack-patch-1.zip
+					#SVN_REPOSITORY https://github.com/bherisse/cminpack/branches/patch-1
+					URL https://github.com/bherisse/cminpack/archive/patch-1.zip
 					CMAKE_ARGS	-DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_SOURCE_DIR}/extDep/CMinPack
 							#-DCMAKE_DEBUG_POSTFIX:STRING=_d
 							#-DCMAKE_RELEASE_POSTFIX:STRING=

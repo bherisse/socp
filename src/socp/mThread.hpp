@@ -35,41 +35,83 @@ public:
 	/**
 	* Constructor
 	*/
-	mThread();
+	mThread() {
+		#if (__cplusplus >= 201103L && !__MINGW32__)
+		#else
+			#ifdef WIN32 // Windows
+				theThread = NULL;
+			#elif defined (linux) // Linux
+			#else // non supported plateform
+				#error not defined for this platform
+			#endif
+		#endif
+	};
 
 	/**
 	* Destructor
 	*/
-	~mThread();
+	~mThread() {
+		#if (__cplusplus >= 201103L && !__MINGW32__)
+		#else
+			#ifdef WIN32 /* Windows */
+				if (theThread)
+					CloseHandle(theThread); // to avoid memory leaks
+			#elif defined (linux) /* Linux */
+			#else /* non supported plateform */
+				#error not defined for this platform
+			#endif
+		#endif
+	};
 
 	/**
 	* Create Thread
 	* @param function the function to be executed by the thread
 	* @param args a pointer to user arguments
 	*/
-	void create(void (*function)(void*), void *args);
+	void create(void (*function)(void*), void *args) {
+		#if (__cplusplus >= 201103L && !__MINGW32__)
+			theThread = std::thread(function, args);
+		#else
+			#ifdef WIN32 /* Windows */
+				if (theThread)
+					CloseHandle(theThread); // to avoid memory leaks
+
+				theThread = CreateThread(
+					NULL,							// default security attributes
+					0,								// stack size
+					(LPTHREAD_START_ROUTINE)function,				// your function
+					args,							// function data
+					0,								// flag
+					0);								// thread id
+			#elif defined (linux) /* Linux */
+					pthread_create(&theThread, NULL, (void* (*)(void*)) function, args);
+			#else /* non supported plateform */
+				#error not defined for this platform
+			#endif
+		#endif
+	};
 
 	/**
 	* Join
 	*/
-	void join();
+	void join() {
+		#if (__cplusplus >= 201103L && !__MINGW32__)
+			theThread.join();
+		#else
+			#ifdef WIN32 /* Windows */
+				WaitForSingleObject(theThread, INFINITE);
+			#elif defined (linux) /* Linux */
+				pthread_join(theThread, NULL);
+			#else /* non supported plateform */
+				#error not defined for this platform
+			#endif
+		#endif
+	};
 
 
 private:
 
 	hThread theThread;		///< the Thread handle
-
-	//#if __cplusplus >= 201103L
-	//	std::thread theThread;
-	//#else
-	//	#ifdef WIN32 /* Windows */
-	//		HANDLE  theThread;
-	//	#elif defined (linux) /* Linux */
-	//		pthread_t theThread;
-	//	#else /* non supported plateform */
-	//		#error not defined for this platform
-	//	#endif
-	//#endif
 
 };
 

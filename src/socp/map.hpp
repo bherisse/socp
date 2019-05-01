@@ -4,6 +4,8 @@
  *  Created on: June 30, 2016
  *      Author: Bruno HERISSE (ONERA/DTIS)
  */
+#include <vector>
+
 #include "commonType.hpp"
 
 #ifndef _MAP_H_
@@ -26,29 +28,18 @@ public:
 	virtual ~map() {};
 
 	/**
-	* Obstacle function
+	* Penalization function
+	* @param position the position to be considered
+	* @param penFunc the value of the penalization function
 	*/
-	virtual void ComputeObstacles(real *position_) const = 0;
+	virtual void PenalizationFunction(std::vector<real> const& position, real & penFunc) const = 0;
 
 	/**
-	* Obstacle function
+	* Penalization gradient
+	* @param position the position to be considered
+	* @param penGrad the value of the penalization gradient
 	*/
-	virtual void ComputeFuncObstacles(real *position_, real *funcObs) const = 0;
-
-	/**
-	* Obstacle gradient
-	*/
-	virtual void ComputeGradObstacles(real *position_, real *gradObs) const = 0;
-
-	/**
-	* Obstacle function
-	*/
-	virtual real GetObsFunc() const = 0;
-
-	/**
-	* Obstacle gradient
-	*/
-	virtual real *GetObsGrad() const = 0;
+	virtual void PenalizationGradient(std::vector<real> const& position, std::vector<real> & penGrad) const = 0;
 
 private:
 

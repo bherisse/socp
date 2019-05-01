@@ -25,7 +25,7 @@ public:
 	* @param numMulti a number for multiple shooting (from 1 shooting to infinity)
 	* @param numThread a number for multithreading (from 1 thread to infinity)
 	*/
-	shooting(model & model, int numMulti, int numThread);
+	shooting(model & model, int numMulti = int(1), int numThread = int(1));
 
 	/**
 	* Destructor
@@ -125,6 +125,13 @@ public:
 	void SetMode(std::vector<int> const& mode_t, std::vector< std::vector<int> > const& mode_X) const;
 
 	/**
+	* Resize the OCP 
+	* @param numMulti a number for multiple shooting (from 1 shooting to infinity)
+	* @param numThread a number for multithreading (from 1 thread to infinity)
+	*/
+	void Resize(int numMulti, int numThread) const;
+
+	/**
 	* Set relative tolerance for the solver
 	* @param xtol realtive tolerance
 	*/
@@ -174,6 +181,11 @@ public:
 	void Trace() const;							
 
 private:
+
+	/**
+	* Model of the Optimal Control Problem
+	*/
+	model & myModel;
 
 	/**
 	* Compute Shooting without continuation

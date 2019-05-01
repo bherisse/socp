@@ -2,5 +2,7 @@
 ######             MAPS            ###########
 ##############################################
 
-
+if (BUILD_VTOLUAV)
+	add_subdirectory (obstacle)
+endif ()
 

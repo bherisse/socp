@@ -19,4 +19,5 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/src/models/goddard
 				FILES_MATCHING
 				PATTERN "*.hpp"
 				PATTERN "*.pdf"
+				PATTERN "*.bib"
 				)

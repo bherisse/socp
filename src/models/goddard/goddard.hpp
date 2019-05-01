@@ -5,7 +5,7 @@
  *      Author: Bruno HERISSE (ONERA/DTIS)
  */
 /*
- * The algorithm is presented in the paper "Singular Arcs in the Generalized Goddard’s Problem", F. Bonnans, P. Martinon, E. Trélat (J Optim Theory Appl (2008) 139: 439–461)
+ * The algorithm is presented in the paper "Singular Arcs in the Generalized Goddard's Problem", F. Bonnans, P. Martinon, E. Trélat (J Optim Theory Appl (2008) 139: 439-461)
  */
 
 #include "../../socp/model.hpp"
@@ -26,20 +26,20 @@ public:
 	* Vehicle parameters
 	*/
 	struct parameters_struct{
-		real C;					// coefficient for thrust
-		real b;					// coefficient for mass flow rate
-		real KD;				// coefficient for drag
-		real kr;				// coefficient for density of air
-		real u_max;				// max normalized control
-		real muL1;				// weight for L1 cost in [0,1]
-		real muL2;				// weight for L2 cost in [0,1]
-		real singularControl;	// singular control value
+		real C;					///< coefficient for thrust
+		real b;					///< coefficient for mass flow rate
+		real KD;				///< coefficient for drag
+		real kr;				///< coefficient for density of air
+		real u_max;				///< max normalized control
+		real muL1;				///< weight for L1 cost in [0,1]
+		real muL2;				///< weight for L2 cost in [0,1]
+		real singularControl;	///< singular control value
 	};
 
 	/**
 	* Constructor
 	*/
-	goddard(std::string the_fileTrace);
+	goddard(std::string the_fileTrace = std::string(""));
 
 	/**
 	* Destructor

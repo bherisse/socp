@@ -19,8 +19,6 @@
 * Shooting data
 */
 struct shooting::data_struct{
-	model *myModel;							///< model of the Optimal Control Problem to be solved
-
 	std::vector<real> timed;				///< desired vector of times
 	std::vector<real> time;					///< current vector of times (for continuation)
 	std::vector<real> time_prec;			///< previous vector of times (for continuation)
@@ -50,24 +48,19 @@ struct shooting::data_struct{
 	int nprint; 							///< for the solver
 	int info; 								///< returned info (1 if OK) by the solver
 	int nfev; 								///< iteration number of the solver
-	void *userData;							///< user data used for the solver
 
 };
 
 /**
 * Constructor
 */
-shooting::shooting(model & model, int numMulti, int numThread){
+shooting::shooting(model & model, int numMulti, int numThread): myModel(model){
 	// Shooting data
 	data = new data_struct;
 
 	// Verify that parameters are correct
 	try
 	{
-		if (&model==NULL)
-			throw std::string("ERROR : model si NULL"); 
-		else
-			data->myModel = &model;
 		if (numMulti<1) 
 			throw std::string("ERROR : numMulti should be superior or equal to 1"); 
 		else 
@@ -89,7 +82,7 @@ shooting::shooting(model & model, int numMulti, int numThread){
 	data->X_prec = std::vector<model::mstate>(data->numMulti+1);
 	data->X = std::vector<model::mstate>(data->numMulti+1);
 	data->Xd = std::vector<model::mstate>(data->numMulti+1);
-	data->dim = data->myModel->GetDim();
+	data->dim = myModel.GetDim();
 	const int n_param_max = 2*data->dim*data->numMulti + (1+data->numMulti); // initial costate dim + junction states for multiple shooting + time vector
 	data->tab_param.reserve(n_param_max);
 	data->tab_param_temp.reserve(n_param_max);
@@ -101,14 +94,13 @@ shooting::shooting(model & model, int numMulti, int numThread){
 	// Parameters used by the hybrd algorithm
 	data->maxfev = 10000; 									// max call fcn
 	data->xtol = 1e-8;										// relative tolerance
-	data->myModel->SetODEIntPrecision(data->xtol);			// Set default precision for model integration
+	myModel.SetODEIntPrecision(data->xtol);			// Set default precision for model integration
 	data->epsfcn = 1e-15; 									// for forward-difference approximation
 	data->scalingMode = 1; 									// scaling (1: by the fcn, 2: by xscal)
 	data->factor = 1; 										// initial step bound
 	data->nprint = 0; 										// for iflag
 	data->info = 0; 										// returned info (1 if OK)
 	data->nfev = 0; 										// iteration number
-	data->userData = (void*) this;
 	
 	// For multithreading
 	data->userThreadData = std::vector< std::vector<void*> >(data->numThread);
@@ -124,10 +116,7 @@ shooting::shooting(model & model, int numMulti, int numThread){
 * Destructor
 */
 shooting::~shooting(){
-
-	//delete data->myModel;
 	delete data;
-
 };
 
 /**
@@ -166,11 +155,55 @@ void shooting::SetMode(std::vector<int> const& mode_t, std::vector< std::vector<
 };
 
 /**
+* Resize
+*/
+void shooting::Resize(int numMulti, int numThread) const {
+	// Verify that parameters are correct
+	try
+	{
+		if (numMulti<1)
+			throw std::string("ERROR : numMulti should be superior or equal to 1");
+		else
+			data->numMulti = numMulti;
+		if (numThread<1)
+			throw std::string("ERROR : numThread should be superior or equal to 1");
+		else
+			data->numThread = numThread;
+	}
+	catch (std::string const& chaine)
+	{
+		std::cerr << std::endl << chaine.c_str() << std::endl;
+		exit(1);
+	}
+
+	data->time_prec.resize(data->numMulti + 1);
+	data->time.resize(data->numMulti + 1);
+	data->timed.resize(data->numMulti + 1);
+	data->X_prec.resize(data->numMulti + 1);
+	data->X.resize(data->numMulti + 1);
+	data->Xd.resize(data->numMulti + 1);
+	const int n_param_max = 2 * data->dim*data->numMulti + (1 + data->numMulti); // initial costate dim + junction states for multiple shooting + time vector
+	data->tab_param.reserve(n_param_max);
+	data->tab_param_temp.reserve(n_param_max);
+	data->mode_X.resize(data->numMulti + 1);		// 0 for fixed X, 1 for free X
+	data->mode_t.resize(data->numMulti + 1);		// 0 for fixed time, 1 for free time
+	data->numParam = n_param_max;					// number of parameters to be found
+
+	// For multithreading
+	data->userThreadData.resize(data->numThread);
+	data->mulThread.resize(data->numThread); //the thread
+	data->threadNum.resize(data->numThread);
+	for (int i = 0; i<data->numThread; i++) {
+		data->userThreadData[i] = std::vector<void*>(6);
+	}
+};
+
+/**
 * Set relative tolerance for the solver
 */
 void shooting::SetPrecision(real const& xtol){
 	data->xtol = xtol;
-	data->myModel->SetODEIntPrecision(data->xtol);			// Set same precision for model integration
+	myModel.SetODEIntPrecision(data->xtol);			// Set same precision for model integration
 }
 
 /**
@@ -556,7 +589,7 @@ int shooting::SolveShootingContinuation(real const& continuationStep, real & Rda
 model::mstate shooting::Move(real const& ti, model::mstate const& Xi, real const& tf) const{
 
 	// Compute trajectory from t0 to tf
-	model::mstate X_tf = data->myModel->ComputeTraj(ti, Xi, tf, 0);
+	model::mstate X_tf = myModel.ComputeTraj(ti, Xi, tf, 0);
 
 	return X_tf;
 
@@ -568,7 +601,7 @@ model::mstate shooting::Move(real const& ti, model::mstate const& Xi, real const
 void shooting::Move(real const& ti, model::mstate const& Xi, real const& tf, model::mstate & Xf) const{
 
 	// Compute trajectory from t0 to tf
-	Xf = data->myModel->ComputeTraj(ti, Xi, tf, 0);
+	Xf = myModel.ComputeTraj(ti, Xi, tf, 0);
 
 }
 
@@ -779,7 +812,7 @@ void shooting::Trace() const
 		t2 = timeLine[i+1];
 		index = 2*(i+1)*data->dim;
 		// Compute trajectory from t1 to t2
-		data->myModel->ComputeTraj(t1, X1, t2, 1);
+		myModel.ComputeTraj(t1, X1, t2, 1);
 		if (i<(data->numMulti-1)){
 			// update data
 			for(int j=0;j<2*data->dim;j++)	X1[j] = data->tab_param[index+j];
@@ -822,11 +855,11 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 			std::vector<real> func;
 			if (data->mode_t[0]==0){
 				func = std::vector<real>(data->dim);
-				data->myModel->FinalFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.FinalFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 			}else{
 				func = std::vector<real>(data->dim+1);
-				data->myModel->FinalHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.FinalHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 				fvec[2*data->dim*data->numMulti] = func[data->dim];
 			}
@@ -838,7 +871,7 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 			if (data->mode_t[i+1]==1){
 				nbrParam+=1;
 				real Si;
-				data->myModel->SwitchingTimesFunction(t2,X_tf,Si);
+				myModel.SwitchingTimesFunction(t2,X_tf,Si);
 				fvec[nbrParam-1] = Si;
 			}
 			// continuity function for multiple shooting
@@ -851,11 +884,11 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 			std::vector<real> func;
 			if (data->mode_t[data->numMulti]==0){
 				func = std::vector<real>(data->dim);
-				data->myModel->FinalFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
+				myModel.FinalFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
 				for (int k=0; k<data->dim; k++) fvec[k+data->dim] = func[k];
 			}else{
 				func = std::vector<real>(data->dim+1);
-				data->myModel->FinalHFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
+				myModel.FinalHFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
 				for (int k=0; k<data->dim; k++) fvec[k+data->dim] = func[k];
 				fvec[data->numParam-1] = func[data->dim];
 			}
@@ -870,11 +903,11 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 	std::vector<real> funci;
 	if (data->mode_t[0]==0){
 		funci = std::vector<real>(data->dim);
-		data->myModel->InitialFunction(t0, X_t0, X0, data->mode_X[0], funci);
+		myModel.InitialFunction(t0, X_t0, X0, data->mode_X[0], funci);
 		for (int i=0; i<data->dim; i++) fvec[i] = funci[i];
 	}else{
 		funci = std::vector<real>(data->dim+1);
-		data->myModel->InitialHFunction(t0, X_t0, X0, data->mode_X[0], funci);
+		myModel.InitialHFunction(t0, X_t0, X0, data->mode_X[0], funci);
 		for (int i=0; i<data->dim; i++) fvec[i] = funci[i];
 		fvec[2*data->dim*data->numMulti] = funci[data->dim];
 	}
@@ -885,11 +918,11 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 	std::vector<real> funcf;
 	if (data->mode_t[data->numMulti]==0){
 		funcf = std::vector<real>(data->dim);
-		data->myModel->FinalFunction(tf, X_tf, Xf, data->mode_X[data->numMulti], funcf);
+		myModel.FinalFunction(tf, X_tf, Xf, data->mode_X[data->numMulti], funcf);
 		for (int i=0; i<data->dim; i++) fvec[i+data->dim] = funcf[i];
 	}else{
 		funcf = std::vector<real>(data->dim+1);
-		data->myModel->FinalHFunction(tf, X_tf, Xf, data->mode_X[data->numMulti], funcf);
+		myModel.FinalHFunction(tf, X_tf, Xf, data->mode_X[data->numMulti], funcf);
 		for (int i=0; i<data->dim; i++) fvec[i+data->dim] = funcf[i];
 		fvec[numParam-1] = funcf[data->dim];
 	}
@@ -955,7 +988,7 @@ int shooting::SolveShootingFunction(int const & numParam, std::vector<real> & pa
 
 	// root finding of the function "StaticShootingFunction"
 	data->info = __cminpack_func__(hybrd)(StaticShootingFunction, 
-			data->userData, 
+			(void*) this, 
 			numParam, 
 			param.data(), 
 			fvec.data(),
@@ -1074,11 +1107,11 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 			std::vector<real> func;
 			if (data->mode_t[0]==0){
 				func = std::vector<real>(data->dim);
-				data->myModel->FinalFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.FinalFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 			}else{
 				func = std::vector<real>(data->dim+1);
-				data->myModel->FinalHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.FinalHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 				fvec[2*data->dim*data->numMulti] = func[data->dim];
 			}
@@ -1090,7 +1123,7 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 			if (data->mode_t[j+1]==1){
 				nbrParam+=1;
 				real Si;
-				data->myModel->SwitchingTimesFunction(t2,X2,Si);
+				myModel.SwitchingTimesFunction(t2,X2,Si);
 				fvec[nbrParam-1] = Si;
 			}
 			// continuity function for multiple shooting
@@ -1103,11 +1136,11 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 			std::vector<real> func;
 			if (data->mode_t[data->numMulti]==0){
 				func = std::vector<real>(data->dim);
-				data->myModel->FinalFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
+				myModel.FinalFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
 				for (int k=0; k<data->dim; k++) fvec[k+data->dim] = func[k];
 			}else{
 				func = std::vector<real>(data->dim+1);
-				data->myModel->FinalHFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
+				myModel.FinalHFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
 				for (int k=0; k<data->dim; k++) fvec[k+data->dim] = func[k];
 				fvec[data->numParam-1] = func[data->dim];
 			}
@@ -1127,7 +1160,7 @@ void shooting::MultipleShootingFunction(real const& t, model::mstate const& X, m
 			case 0 :	fvec[j] = X[j] - Xd[j];
 						fvec[j+dim] = Xp[j] - Xd[j];
 						break;
-			case 1 :	data->myModel->SwitchingStateFunction(t, j, X, Xp, fvec);
+			case 1 :	myModel.SwitchingStateFunction(t, j, X, Xp, fvec);
 						break;
 			case 2 :	fvec[j] = X[j] - Xp[j];
 						fvec[j+dim] = X[j+dim] - Xp[j+dim];
@@ -1178,6 +1211,6 @@ void shooting::ComputeTimeLine(std::vector<real> const& param, std::vector<real>
 		
 	}
 	// update switching times in the model (to manage discontinuities)
-	data->myModel->SwitchingTimesUpdate(SwitchingTimes);	
+	myModel.SwitchingTimesUpdate(SwitchingTimes);	
 
 }

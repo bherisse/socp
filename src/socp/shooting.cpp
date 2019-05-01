@@ -191,7 +191,7 @@ void shooting::Resize(int numMulti, int numThread) const {
 
 	// For multithreading
 	data->userThreadData.resize(data->numThread);
-	data->mulThread.resize(data->numThread); //the thread
+	data->mulThread = std::vector< mThread >(data->numThread);
 	data->threadNum.resize(data->numThread);
 	for (int i = 0; i<data->numThread; i++) {
 		data->userThreadData[i] = std::vector<void*>(6);

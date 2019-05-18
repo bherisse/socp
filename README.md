@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/bherisse/socp.svg?branch=master)](https://travis-ci.com/bherisse/socp)
+
 SOCP (Shooting for Optimal Control Problems)
 ===========
 	

@@ -38,8 +38,8 @@ int main(int argc, char** argv) {
 	std::vector<model::mstate> vX(nMulti+1);						// state and costate at times vt
 
 	// set mode for final time and state
-	int mode_tf = 1;												// 0 for fixed time, 1 for free optimized time, 2 otherwise
-	std::vector<int> mode_Xf(goddardDim,0);							// 0 for fixed state, 1 for free optimized state, 2 otherwise
+	int mode_tf = 1;												// 0 for fixed time, 1 for free optimized time
+	std::vector<int> mode_Xf(goddardDim,0);							// 0 for fixed state, 1 for free optimized state
 	mode_Xf[3] = 1;	// vxf is free
 	mode_Xf[4] = 1;	// vyf is free
 	mode_Xf[5] = 1;	// vzf is free
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
 	std::cout << "	Computing time: " << time << " secondes." << std::endl;
 
 	/********************************************************/
-	/****************** plot figures ************************/
+	/****************** trace solution **********************/
 	/********************************************************/
 	std::cout << "Trace the solution: " << std::endl;
 	std::cout << "	Writting trace/goddard/trace.dat" << std::endl;

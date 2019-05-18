@@ -120,6 +120,13 @@ shooting::~shooting(){
 };
 
 /**
+* Get Model
+*/
+model & shooting::GetModel() {
+	return myModel;
+}
+
+/**
 * Set mode
 */
 void shooting::SetMode(int const& mode_tf, std::vector<int> const& mode_Xf) const{
@@ -855,11 +862,11 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 			std::vector<real> func;
 			if (data->mode_t[0]==0){
 				func = std::vector<real>(data->dim);
-				myModel.FinalFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 			}else{
 				func = std::vector<real>(data->dim+1);
-				myModel.FinalHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 				fvec[2*data->dim*data->numMulti] = func[data->dim];
 			}
@@ -896,37 +903,6 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 
 	}
 
-	
-/*	// Initial desired model state (possibly time-varying)
-	model::mstate X0 = data->X[0];
-	real t0 = timeLine[0];
-	std::vector<real> funci;
-	if (data->mode_t[0]==0){
-		funci = std::vector<real>(data->dim);
-		myModel.InitialFunction(t0, X_t0, X0, data->mode_X[0], funci);
-		for (int i=0; i<data->dim; i++) fvec[i] = funci[i];
-	}else{
-		funci = std::vector<real>(data->dim+1);
-		myModel.InitialHFunction(t0, X_t0, X0, data->mode_X[0], funci);
-		for (int i=0; i<data->dim; i++) fvec[i] = funci[i];
-		fvec[2*data->dim*data->numMulti] = funci[data->dim];
-	}
-
-	// Final desired model state (possibly time-varying)
-	model::mstate Xf = data->X[data->numMulti];
-	real tf = timeLine[data->numMulti];
-	std::vector<real> funcf;
-	if (data->mode_t[data->numMulti]==0){
-		funcf = std::vector<real>(data->dim);
-		myModel.FinalFunction(tf, X_tf, Xf, data->mode_X[data->numMulti], funcf);
-		for (int i=0; i<data->dim; i++) fvec[i+data->dim] = funcf[i];
-	}else{
-		funcf = std::vector<real>(data->dim+1);
-		myModel.FinalHFunction(tf, X_tf, Xf, data->mode_X[data->numMulti], funcf);
-		for (int i=0; i<data->dim; i++) fvec[i+data->dim] = funcf[i];
-		fvec[numParam-1] = funcf[data->dim];
-	}
-*/
 }
 
 /**
@@ -1107,11 +1083,11 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 			std::vector<real> func;
 			if (data->mode_t[0]==0){
 				func = std::vector<real>(data->dim);
-				myModel.FinalFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 			}else{
 				func = std::vector<real>(data->dim+1);
-				myModel.FinalHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 				fvec[2*data->dim*data->numMulti] = func[data->dim];
 			}

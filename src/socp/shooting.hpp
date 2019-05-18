@@ -178,7 +178,13 @@ public:
 	/**
 	* Trace in the specified file (in model) by handling multiple shooting
 	*/
-	void Trace() const;							
+	void Trace() const;	
+
+	/**
+	* Get Model
+	* @return the model
+	*/
+	model & GetModel();
 
 private:
 

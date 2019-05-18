@@ -7,16 +7,14 @@
 /*
 * The model used here is presented in the paper "Singular Arcs in the Generalized Goddard's Problem", F. Bonnans, P. Martinon, E. Trélat (J Optim Theory Appl (2008) 139: 439-461)
 */
+
 #include <fstream>
 #include <sstream>
-
 #include <math.h>
 
 #include "goddard.hpp"
 
-/**
-* Vehicle data
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 struct goddard::data_struct {
 	int n;										///< state dimension
 	parameters_struct parameters;				///< those parameters can be used for continuation
@@ -25,9 +23,7 @@ struct goddard::data_struct {
 	std::string strFileTrace;					///< trace file
 };
 
-/**
-* Constructor
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 goddard::goddard(std::string the_fileTrace) : model(7) {
 	// vehicle data
 	data = new data_struct;
@@ -52,16 +48,12 @@ goddard::goddard(std::string the_fileTrace) : model(7) {
 	fileTrace.close();
 };
 
-/**
-* Destructor
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 goddard::~goddard() {
 	delete(data);
 };
 
-/**
-* State model of the vehicle
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 goddard::mstate goddard::Model(real const& t, mstate const& X) const {
 	mstate Xdot(X.size());
 
@@ -116,9 +108,7 @@ goddard::mstate goddard::Model(real const& t, mstate const& X) const {
 
 };
 
-/**
-* Control model of the vehicle
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 	// current state value
 	real x = X[0];
@@ -201,9 +191,7 @@ goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 
 }
 
-/**
-* Get Singular control
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 real goddard::GetSingularControl(real t, mstate const& X) const {
 	// current state and costate value
 	real x = X[0];
@@ -271,9 +259,7 @@ real goddard::GetSingularControl(real t, mstate const& X) const {
 	return alpha_u;
 }
 
-/**
-* Hamiltonian of the vehicle
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 real goddard::Hamiltonian(real const& t, mstate const& X) const {
 	// current state value
 	real x = X[0];
@@ -315,9 +301,7 @@ real goddard::Hamiltonian(real const& t, mstate const& X) const {
 	return H;
 }
 
-/**
-* Integrate state equations with an ODE solver
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 goddard::mstate goddard::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace) {
 	std::stringstream ss;
 
@@ -340,9 +324,7 @@ goddard::mstate goddard::ModelInt(real const& t0, mstate const& X, real const& t
 	return Xs;
 };
 
-/**
-* Trace state
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) const {
 	// control computation
 	mstate control = Control(t, X);
@@ -365,16 +347,12 @@ void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) co
 	file << Switch << std::endl;
 }
 
-/**
-* Get parameters pointer
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 goddard::parameters_struct & goddard::GetParameterData() {
 	return data->parameters;
 }
 
-/**
-* Switching function for the L1 norm (if muL2 = 0)
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 void goddard::SwitchingTimesFunction(real const& t, mstate const& X, real & fvec) const {
 	// current state value
 	real x = X[0];
@@ -404,18 +382,14 @@ void goddard::SwitchingTimesFunction(real const& t, mstate const& X, real & fvec
 	fvec = Hamiltonian(t, X);
 }
 
-/**
-* update Switching times
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 void goddard::SwitchingTimesUpdate(std::vector<real> const& switchingTimes) {
 	// Switching times
 	data->switchingTimes.resize(switchingTimes.size());
 	for (int i = 0; i<switchingTimes.size(); i++) data->switchingTimes[i] = switchingTimes[i];
 }
 
-/**
-* set parameter data by name
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 void goddard::SetParameterDataName(std::string name, real value) {
 	if (name == std::string("KD"))
 		data->parameters.KD = value;
@@ -435,9 +409,7 @@ void goddard::SetParameterDataName(std::string name, real value) {
 		data->parameters.u_max = value;
 }
 
-/**
-* get parameter data by name
-*/
+////////////////////////////////////////////////////////////////////////////////////////////
 real & goddard::GetParameterDataName(std::string name) {
 	if (name == std::string("KD"))
 		return data->parameters.KD;

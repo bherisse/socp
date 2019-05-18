@@ -47,7 +47,8 @@ public:
 	virtual ~goddard();
 
 	/**
-	* Get data pointer
+	* Get data
+	* @return parameters structure
 	*/
 	parameters_struct & GetParameterData();
 
@@ -63,11 +64,15 @@ public:
 
 	/**
 	* set parameter data by name
+	* @param name the name of the parameter
+	* @param value the value of the parameter
 	*/
 	void SetParameterDataName(std::string name, real value);
 
 	/**
 	* Get parameter data by name
+	* @param name the name of the parameter
+	* @return the value of the parameter
 	*/
 	real & GetParameterDataName(std::string name);
 

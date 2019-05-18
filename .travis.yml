@@ -1,3 +1,7 @@
+os: 
+  - linux
+  - windows
+
 # Enable C++ support
 language: cpp
 

@@ -211,35 +211,33 @@ interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, r
 		//default : /* Optional */
 	}
 
+	// chart handling
+	if (data->currentChart == 2)
+		X_tf = ConversionState21(X_tf);
+
 	return X_tf;
 
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 void interceptor::FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const{
-	mstate Xc = X_tf;
-	mstate Xfc = Xf;
-
-	// chart handling
-	if (data->currentChart==2) 
-		Xc = ConversionState21(X_tf);
-
 	// Compute the function to solve
-	for (int j=0;j<data->n;j++){
-		if (mode_X[j]==1){
+	for (int j = 0; j<data->n; j++) {
+		if (mode_X[j] == 1) {
 			// X(k+n) (transversality condition)
-			fvec[j] = Xc[j+data->n];
-			if (j==1){
-				fvec[j] = Xc[j+data->n] + data->parameters.muV;	// optimality of the final velocity
+			fvec[j] = X_tf[j + data->n];
+			if (j == 1) {
+				fvec[j] = X_tf[j + data->n] + data->parameters.muV;	// optimality of the final velocity
 			}
-		}else{
+		}
+		else {
 			// continuity => X(k) = Xf(k)
-			fvec[j] = Xc[j] - Xfc[j];
+			fvec[j] = X_tf[j] - Xf[j];
 			if (j == 0) {
 				fvec[j] = fvec[j] / data->parameters.hr; // scaling
 			}
-			if (j == 3 && fabs(cos(Xfc[2]))<1e-5) {
-				fvec[j] = Xc[j+data->n]; // if cos(gamma)=0, chi is free, then p_chi = 0 
+			if (j == 3 && fabs(cos(Xf[2]))<1e-5) {
+				fvec[j] = X_tf[j + data->n]; // if cos(gamma)=0, chi is free, then p_chi = 0 
 			}
 		}
 	}
@@ -248,30 +246,23 @@ void interceptor::FinalFunction(real const& tf, mstate const& X_tf, mstate const
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 void interceptor::FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const{
-	mstate Xc = X_tf;
-	mstate Xfc = Xf;
-
-	// chart handling
-	if (data->currentChart == 2) 
-		Xc = ConversionState21(X_tf);
-
 	// Compute the function to solve
 	for (int j = 0; j<data->n; j++) {
 		if (mode_X[j] == 1) {
 			// X(k+n) (transversality condition)
-			fvec[j] = Xc[j + data->n];
+			fvec[j] = X_tf[j + data->n];
 			if (j == 1) {
-				fvec[j] = Xc[j + data->n] + data->parameters.muV;	// optimality of the final velocity
+				fvec[j] = X_tf[j + data->n] + data->parameters.muV;	// optimality of the final velocity
 			}
 		}
 		else {
 			// continuity => X(k) = Xf(k)
-			fvec[j] = Xc[j] - Xfc[j];
+			fvec[j] = X_tf[j] - Xf[j];
 			if (j == 0) {
 				fvec[j] = fvec[j] / data->parameters.hr; // scaling
 			}
-			if (j == 3 && fabs(cos(Xfc[2]))<1e-5) {
-				fvec[j] = Xc[j + data->n]; // if cos(gamma)=0, chi is free, then p_chi = 0 
+			if (j == 3 && fabs(cos(Xf[2]))<1e-5) {
+				fvec[j] = X_tf[j + data->n]; // if cos(gamma)=0, chi is free, then p_chi = 0 
 			}
 		}
 	}

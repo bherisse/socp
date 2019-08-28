@@ -69,7 +69,7 @@ public:
 	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
 	* @return result from the solver : 1 if success
 	*/
-	int SolveOCP(real const& continuationStep) const;
+	int SolveOCP(real const& continuationStep = real(0.0)) const;
 
 	/**
 	* Solve OCP with discrete continuation on a real parameter from Rdata to Rgoal
@@ -100,13 +100,15 @@ public:
 
 	/**
 	* Function to move the model to tf using initial or previously solved solution and handling multiple shooting
-	* @return final state
+	* @param tf the final time
+	* @return the final state
 	*/
 	model::mstate Move(real const& tf) const;
 
 	/**
 	* Function to move the model to tf using initial or previously solved solution and handling multiple shooting
-	* @param final state
+	* @param tf the final time
+	* @param Xf the final state
 	*/
 	void Move(real const& tf, model::mstate & Xf) const;
 

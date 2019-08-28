@@ -31,8 +31,8 @@ public:
 		real KD;				///< coefficient for drag
 		real kr;				///< coefficient for density of air
 		real u_max;				///< max normalized control
-		real muL1;				///< weight for L1 cost in [0,1]
-		real muL2;				///< weight for L2 cost in [0,1]
+		real mu1;				///< weight for the cost on the norm of the control in [0,1]
+		real mu2;				///< weight for the quadratic cost on the control in [0,1]
 		real singularControl;	///< singular control value
 	};
 

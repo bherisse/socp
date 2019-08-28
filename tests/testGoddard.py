@@ -19,10 +19,11 @@ import pyGoddard
 print("Initialize the OCP: ")
 
 # new model object
-my_fileTrace = "../trace/goddard/trace.dat"					# file full path for trace
-my_goddard = pyGoddard.goddard(my_fileTrace)				# The OCP is defined in the goddard class
-goddardDim = pyGoddard.goddard.GetDim(my_goddard)			# GetDim return the dimension of the dynamic model
-
+my_fileTrace = "../trace/goddard/trace.dat"						# file full path for trace
+my_goddard = pyGoddard.goddard(my_fileTrace);					# The OCP is defined in the goddard class
+goddardDim = pyGoddard.goddard.GetDim(my_goddard);				# GetDim return the dimension of the dynamic model
+pyGoddard.goddard.SetParameterDataName(my_goddard, "mu2", 1);	# we start with a quadratic cost on the control
+															
 # new shooting object
 nMulti = 6;													# multiple shooting parameter (>0)
 my_shooting = pySOCP.shooting(my_goddard, nMulti, 1);		# model / number for multiple shooting (1 if simple shooting) / number of threads (1 for one thread)
@@ -95,13 +96,13 @@ if info==1:
 	info = pySOCP.shooting.SolveOCP(my_shooting, 1.0, pyGoddard.goddard.GetParameterDataName(my_goddard, "KD"), 310);		# solve OCP with continuation step 1
 print("OK = " + str(info))
 
-# then, start a continuation on muL2
-print("	Continuation on parameter muL2 (muL2 = 1 to 0.2): ", end="")
+# then, start a continuation on mu2
+print("	Continuation on parameter mu2 (mu2 = 1 to 0.2): ", end="")
 if info==1:
-	info = pySOCP.shooting.SolveOCP(my_shooting, 1.0, pyGoddard.goddard.GetParameterDataName(my_goddard, "muL2"), 0.2);		# solve OCP with continuation step 1
+	info = pySOCP.shooting.SolveOCP(my_shooting, 1.0, pyGoddard.goddard.GetParameterDataName(my_goddard, "mu2"), 0.2);		# solve OCP with continuation step 1
 print("OK = " + str(info))
 
-# to set muL2 = 0, we need to change the structure of the solution (Bang-Singular-Off)
+# to set mu2 = 0, we need to change the structure of the solution (Bang-Singular-Off)
 pySOCP.shooting.GetSolution(my_shooting, vt, vX)		# guess from previous solution
 tf = vt[nMulti]											# tf from last computed solution
 SwitchingTimes_1 = 0.0227; 								# Define switching times for singular arcs (estimated from observation of the previous solution)
@@ -132,14 +133,14 @@ pySOCP.shooting.SetMode(my_shooting, mode_t, mode_X);	# setting mode to the solv
 # init
 pySOCP.shooting.InitShooting(my_shooting, vt, vX);		# init shooting with the guess
 
-# change cost of the model (L1 norm only to maximize the mass)
-pyGoddard.goddard.SetParameterDataName(my_goddard, "muL2", 0);
+# change cost of the model (norm only to maximize the mass)
+pyGoddard.goddard.SetParameterDataName(my_goddard, "mu2", 0);
 # set singular control
 #pyGoddard.goddard.SetParameterDataName(my_goddard, "singularControl", 0.6);	# constant approximation for the singular control
 pyGoddard.goddard.SetParameterDataName(my_goddard, "singularControl", -1);		# if singularControl < 0, then true explicit singular control
 
 # solve OCP
-print("	Solve OCP with singular control (muL2 = 0): ", end="");
+print("	Solve OCP with singular control (mu2 = 0): ", end="");
 if info==1:
 	info = pySOCP.shooting.SolveOCP(my_shooting, 0.0);							# solve OCP with continuation step 0 (no continuation possible here)
 print("OK = " + str(info));

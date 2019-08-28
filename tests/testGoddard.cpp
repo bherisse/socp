@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
 	std::string my_fileTrace("../../trace/goddard/trace.dat");		// file full path for trace
 	goddard my_goddard(my_fileTrace);								// The OCP is defined in the goddard class
 	int goddardDim = my_goddard.GetDim();							// GetDim return the dimension of the dynamic model
+	my_goddard.GetParameterData().mu2 = 1;							// we start with a quadratic cost on the control
 
 	// new shooting object
 	int nMulti = 6;													// multiple shooting parameter (>0)
@@ -104,13 +105,13 @@ int main(int argc, char** argv) {
 		info = my_shooting.SolveOCP(1.0, my_goddard.GetParameterData().KD, 310);		// solve OCP with continuation step 1
 	std::cout << "OK = " << info << std::endl;
 
-	// then, start a continuation on muL2 
-	std::cout << "	Continuation on parameter muL2 (muL2 = 1 to 0.2): ";
+	// then, start a continuation on mu2 
+	std::cout << "	Continuation on parameter mu2 (mu2 = 1 to 0.2): ";
 	if (info == 1)
-		info = my_shooting.SolveOCP(1.0, my_goddard.GetParameterData().muL2, 0.2); // solve OCP with continuation step 1
+		info = my_shooting.SolveOCP(1.0, my_goddard.GetParameterData().mu2, 0.2); // solve OCP with continuation step 1
 	std::cout << "OK = " << info << std::endl;
 
-	// to set muL2 = 0, we need to change the structure of the solution (Bang-Singular-Off)
+	// to set mu2 = 0, we need to change the structure of the solution (Bang-Singular-Off)
 	my_shooting.GetSolution(vt,vX);								// guess from previous solution
 	tf = vt[nMulti];											// tf from last computed solution
 	real SwitchingTimes_1 = 0.0227; 							// Define switching times for singular arcs (estimated from observation of the previous solution)
@@ -143,14 +144,14 @@ int main(int argc, char** argv) {
 	// init
 	my_shooting.InitShooting(vt, vX);							// init shooting with the guess
 
-	// change cost of the model (L1 norm only to maximize the mass)
-	my_goddard.GetParameterData().muL2 = 0;
+	// change cost of the model (norm only to maximize the mass)
+	my_goddard.GetParameterData().mu2 = 0;
 	// set singular control 
 	//my_goddard->GetParameterData()->singularControl = 0.6;	// constant approximation for the singular control
 	my_goddard.GetParameterData().singularControl = -1;			// if singularControl < 0, then true explicit singular control
 
 	// solve OCP
-	std::cout << "	Solve OCP with singular control (muL2 = 0): ";
+	std::cout << "	Solve OCP with singular control (mu2 = 0): ";
 	if (info==1)	
 		info = my_shooting.SolveOCP(0.0);						// solve OCP with continuation step 0 (no continuation possible here)
 	std::cout << "OK = " << info << std::endl;

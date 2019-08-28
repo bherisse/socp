@@ -171,7 +171,9 @@ public:
 	/**
 	* Switching function 
 	* @param t the free time
+	* @param stateID the index of the state component
 	* @param X the state at t
+	* @param Xp the state at t+
 	* @param fvec a vector of the values of the function
 	*/
 	virtual void SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate & fvec) const{

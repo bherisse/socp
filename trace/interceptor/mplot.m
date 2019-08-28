@@ -71,7 +71,6 @@ for k=1:3
     ylabel('r_T \cdot l (km)', 'FontSize', 15)
     zlabel('altitude(km)', 'FontSize', 15)
     grid on
-    grid on
     title('Latitude-longitude-altitude trajectories', 'FontSize', 15)
     % print -depsc Llh_trajectory
 

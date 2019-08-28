@@ -33,9 +33,9 @@ goddard::goddard(std::string the_fileTrace) : model(7) {
 		data->parameters.KD = 310;					// coefficient for drag
 		data->parameters.kr = 500;					// coefficient for density of air
 		data->parameters.u_max = 1;					// max normalized control
-		data->parameters.muL1 = 1;					// weight for L1 cost in [0,1]
-		data->parameters.muL2 = 1;					// weight for L2 cost in [0,1]
-		data->parameters.singularControl = 1.0;		// a constant approximation of the singular arc
+		data->parameters.mu1 = 1;					// weight for the cost on the norm of the control in [0,1]
+		data->parameters.mu2 = 0;					// weight for the quadratic cost on the control in [0,1]
+		data->parameters.singularControl = -1;		// a constant approximation of the singular arc
 	data->switchingTimes = std::vector<real>(2);
 	data->switchingTimes[0] = 0.0227;				// first switch time for singular control
 	data->switchingTimes[1] = 0.08;					// second switch time for singular control
@@ -140,12 +140,12 @@ goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 	real Switch;
 	real alpha_u = 0;
 	real u[3];
-	Switch = data->parameters.muL1 - b*p_mass - C / mass*norm_pv;		// switching function
+	Switch = data->parameters.mu1 - b*p_mass - C / mass*norm_pv;		// switching function
 
-	if (data->parameters.muL2 > 0) {
+	if (data->parameters.mu2 > 0) {
 		// if a quadratic cost is used 
 		if (Switch<0) {
-			alpha_u = -Switch / 2 / data->parameters.muL2;
+			alpha_u = -Switch / 2 / data->parameters.mu2;
 		}
 		else {			//(Switch>=0)
 			alpha_u = 0;
@@ -291,7 +291,7 @@ real goddard::Hamiltonian(real const& t, mstate const& X) const {
 	real norm_u = sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
 
 	// H is computed
-	real H = data->parameters.muL1*norm_u + data->parameters.muL2*norm_u*norm_u
+	real H = data->parameters.mu1*norm_u + data->parameters.mu2*norm_u*norm_u
 		+ p_x*vx + p_y*vy + p_z*vz
 		+ p_vx*(-KD*v*vx*exp(-kr*(r - 1)) / mass - g*x / r + C*u[0] / mass)
 		+ p_vy*(-KD*v*vy*exp(-kr*(r - 1)) / mass - g*y / r + C*u[1] / mass)
@@ -343,7 +343,7 @@ void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) co
 	file << H << "\t";
 
 	// additional trace
-	real Switch = data->parameters.muL1 - data->parameters.b*X[13] - data->parameters.C / X[6] * sqrt(X[10] * X[10] + X[11] * X[11] + X[12] * X[12]);
+	real Switch = data->parameters.mu1 - data->parameters.b*X[13] - data->parameters.C / X[6] * sqrt(X[10] * X[10] + X[11] * X[11] + X[12] * X[12]);
 	file << Switch << std::endl;
 }
 
@@ -375,7 +375,7 @@ void goddard::SwitchingTimesFunction(real const& t, mstate const& X, real & fvec
 	real norm_pv = sqrt(p_vx*p_vx + p_vy*p_vy + p_vz*p_vz);
 
 	// Switching function
-	//real Switch = data->parameters.muL1 - b*p_mass - C/mass*norm_pv;
+	//real Switch = data->parameters.mu1 - b*p_mass - C/mass*norm_pv;
 
 	// Using Switch or Hamiltonian is equivalent in this case (free final time)
 	//fvec = Switch;
@@ -399,10 +399,10 @@ void goddard::SetParameterDataName(std::string name, real value) {
 		data->parameters.b = value;
 	if (name == std::string("kr"))
 		data->parameters.kr = value;
-	if (name == std::string("muL2"))
-		data->parameters.muL2 = value;
-	if (name == std::string("muL1"))
-		data->parameters.muL1 = value;
+	if (name == std::string("mu2"))
+		data->parameters.mu2 = value;
+	if (name == std::string("mu1"))
+		data->parameters.mu1 = value;
 	if (name == std::string("singularControl"))
 		data->parameters.singularControl = value;
 	if (name == std::string("u_max"))
@@ -419,10 +419,10 @@ real & goddard::GetParameterDataName(std::string name) {
 		return data->parameters.b;
 	if (name == std::string("kr"))
 		return data->parameters.kr;
-	if (name == std::string("muL2"))
-		return data->parameters.muL2;
-	if (name == std::string("muL1"))
-		return data->parameters.muL1;
+	if (name == std::string("mu2"))
+		return data->parameters.mu2;
+	if (name == std::string("mu1"))
+		return data->parameters.mu1;
 	if (name == std::string("singularControl"))
 		return data->parameters.singularControl;
 	if (name == std::string("u_max"))

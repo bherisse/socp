@@ -14,7 +14,7 @@ title('xy trajectory')
 print -depsc xy_trajectory
 
 h2 = figure(2);
-set(h2,'Visible', 'off'); 
+% set(h2,'Visible', 'off'); 
 plot(data(:,2), data(:,4),'LineWidth',2)
 xlabel('x')
 ylabel('z')
@@ -82,7 +82,7 @@ title('Hamiltonian')
 print -depsc hamiltonian
 
 h8 = figure(8);
-set(h8,'Visible', 'off'); 
+% set(h8,'Visible', 'off'); 
 hold on
 plot(data(:,1), sqrt(data(:,16).^2 + data(:,17).^2 + data(:,18).^2),'LineWidth',2)
 plot(data(:,1), 1*ones(length(data(:,1)),1),'--','LineWidth',2)

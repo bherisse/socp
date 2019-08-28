@@ -29,17 +29,17 @@ public:
 
 	/**
 	* Penalization function
-	* @param position the position to be considered
-	* @param penFunc the value of the penalization function
+	* @param state the state to be considered
+	* @param func the value of the function
 	*/
-	virtual void PenalizationFunction(std::vector<real> const& position, real & penFunc) const = 0;
+	virtual void Function(std::vector<real> const& state, real & func) const = 0;
 
 	/**
 	* Penalization gradient
-	* @param position the position to be considered
-	* @param penGrad the value of the penalization gradient
+	* @param state the state to be considered
+	* @param grad the value of the gradient
 	*/
-	virtual void PenalizationGradient(std::vector<real> const& position, std::vector<real> & penGrad) const = 0;
+	virtual void Gradient(std::vector<real> const& state, std::vector<real> & grad) const = 0;
 
 private:
 

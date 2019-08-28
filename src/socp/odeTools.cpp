@@ -36,8 +36,8 @@ odeTools::odeVector odeTools::AddState(odeVector const& X, odeVector const& Y){
 /**
 * compute one step RK1
 */
-odeTools::odeVector odeTools::RK1(real const& t, odeVector const& X, real const& step, odeVector (*function)(real const&,odeVector const&, void*), void* model){
-	return AddState(X,MultState(step,function(t, X, model)));
+odeTools::odeVector odeTools::RK1(real const& t, odeVector const& X, real const& step, odeVector (*function)(real const&,odeVector const&, void*), void* context){
+	return AddState(X,MultState(step,function(t, X, context)));
 }
 
 void odeTools::RK1(real const& t, odeVector & X, real const& step, odeStruct const& ode) {
@@ -51,9 +51,9 @@ void odeTools::RK1(real const& t, odeVector & X, real const& step, odeStruct con
 /**
 * compute one step RK2
 */
-odeTools::odeVector odeTools::RK2(real const& t, odeVector const& X, real const& step, odeVector (*function)(real const&,odeVector const&, void*), void* model){
-	odeVector F1 = function(t, X, model);
-	odeVector F2 = function(t + step/2.0, AddState(X,MultState(step/2.0,F1)), model);
+odeTools::odeVector odeTools::RK2(real const& t, odeVector const& X, real const& step, odeVector (*function)(real const&,odeVector const&, void*), void* context){
+	odeVector F1 = function(t, X, context);
+	odeVector F2 = function(t + step/2.0, AddState(X,MultState(step/2.0,F1)), context);
 
 	return AddState(X,MultState(step,F2));
 }

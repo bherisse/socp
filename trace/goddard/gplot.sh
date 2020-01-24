@@ -1,3 +1,5 @@
+#!/usr/bin/gnuplot -persist
+
 set terminal postscript eps
 
 reset

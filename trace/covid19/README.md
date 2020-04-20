@@ -15,7 +15,7 @@ Using a SEIR model for the covid-19 epidemic, the problem considered here is the
 
 SEIR model and control problem
 ----------
-The SEIR model is recalled here:
+The SEIR model is recalled here, where the variable 'u' is the lockdown control (no lockdown if u=0):
 ![](SEIR.png)
 
 The optimal control problem is the following:

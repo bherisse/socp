@@ -94,7 +94,7 @@ shooting::shooting(model & model, int numMulti, int numThread): myModel(model){
 	// Parameters used by the hybrd algorithm
 	data->maxfev = 10000; 									// max call fcn
 	data->xtol = 1e-8;										// relative tolerance
-	myModel.SetODEIntPrecision(data->xtol);			// Set default precision for model integration
+	myModel.SetODEIntPrecision(data->xtol);					// Set default precision for model integration
 	data->epsfcn = 1e-15; 									// for forward-difference approximation
 	data->scalingMode = 1; 									// scaling (1: by the fcn, 2: by xscal)
 	data->factor = 1; 										// initial step bound
@@ -846,6 +846,7 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 	// Process multiple shooting
 	model::mstate X1 = X_t0;		// current state
 	model::mstate X_tf = X_t0;	// next state to be computed
+	model::mstate Xp = X1;
 	real t1, t2;
 	int index;
 	int nbrParam = 2*data->dim*data->numMulti;
@@ -869,17 +870,17 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
 				for (int k=0; k<data->dim; k++) fvec[k] = func[k];
 				fvec[2*data->dim*data->numMulti] = func[data->dim];
+				nbrParam += 1;
 			}
 		}
 		if (i<(data->numMulti-1)){
-			model::mstate Xp = X1;
 			for (int k=0;k<2*data->dim;k++)	Xp[k] = param[index+k];
 			// Switching function for free intermediate times
 			if (data->mode_t[i+1]==1){
-				nbrParam+=1;
 				real Si;
 				myModel.SwitchingTimesFunction(t2,X_tf,Si);
-				fvec[nbrParam-1] = Si;
+				fvec[nbrParam] = Si;
+				nbrParam += 1;
 			}
 			// continuity function for multiple shooting
 			MultipleShootingFunction(t2, X_tf, Xp, data->X[i+1], data->mode_X[i+1], funcMS);
@@ -897,7 +898,9 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 				func = std::vector<real>(data->dim+1);
 				myModel.FinalHFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
 				for (int k=0; k<data->dim; k++) fvec[k+data->dim] = func[k];
-				fvec[data->numParam-1] = func[data->dim];
+				fvec[nbrParam] = func[data->dim];
+				nbrParam += 1;
+				assert(nbrParam == data->numParam);
 			}
 		}
 
@@ -911,10 +914,6 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 void shooting::ShootingFunctionPar(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const
 {
 	int numParam = data->numParam;
-
-	// Initial model state
-	model::mstate X0 = data->X[0];
-	for(int i=0;i<2*data->dim;i++)	X0[i] = param[i];
 
 	// Get the timeline
 	std::vector<real> timeLine(data->numMulti+1);
@@ -1039,24 +1038,23 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 	int j, start;
 
 	nMulti = floor((real) data->numMulti/data->numThread);
-	//if (*threadNum == data->numThread-1)	nMulti += data->numMulti%data->numThread; 	// the last cpu compute remaining pieces
 	int remainder = data->numMulti%data->numThread;
 	if (threadNum < remainder){
-		nMulti += 1; 	// the last cpu compute remaining pieces
-		start = threadNum*(floor((real) data->numMulti/data->numThread)+1);
+		nMulti += 1; 	// allocate remaining pieces to threads
+		start = threadNum*nMulti;
 	}else{
-		start = threadNum*floor((real) data->numMulti/data->numThread)+remainder;
+		start = threadNum*nMulti + remainder;
 	}
 
 	// parameter to get current switching time
 	int nbrParam = 2*data->dim*data->numMulti;
-	for (int k=0; k<start; k++){											// get first switching time processed by current thread
-		if (data->mode_t[k+1]==1){
+	for (int k=0; k<=start; k++){											// get first switching time processed by current thread
+		if (data->mode_t[k]==1){
 				nbrParam+=1;
 		}
 	}
 
-	model::mstate Xp;
+	model::mstate Xp = X1;
 	model::mstate funcMS(2*data->dim);
 	real t1, t2;
 	for (int i=0; i<nMulti; i++){
@@ -1067,11 +1065,7 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 
 		// Initial state
 		if (i==0){		
-			if (j==0){
-				for(int k=0;k<2*data->dim;k++)	X1[k] = param[k];
-			}else{
-				for (int k=0;k<2*data->dim;k++)	X1[k] = param[2*j*data->dim + k];
-			}
+			for (int k = 0; k<2 * data->dim; k++)	X1[k] = param[2 * j*data->dim + k];
 		}
 
 		// Compute trajectory from t1 to t2
@@ -1093,14 +1087,13 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 			}
 		}
 		if (j<(data->numMulti-1)){
-			Xp = X1;
 			for (int k=0;k<2*data->dim;k++)	Xp[k] = param[index+k];
 			// Switching function for free intermediate times
 			if (data->mode_t[j+1]==1){
-				nbrParam+=1;
 				real Si;
 				myModel.SwitchingTimesFunction(t2,X2,Si);
-				fvec[nbrParam-1] = Si;
+				fvec[nbrParam] = Si;
+				nbrParam += 1;
 			}
 			// continuity function for multiple shooting
 			MultipleShootingFunction(t2, X2, Xp, data->X[j+1], data->mode_X[j+1], funcMS);
@@ -1118,7 +1111,9 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 				func = std::vector<real>(data->dim+1);
 				myModel.FinalHFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
 				for (int k=0; k<data->dim; k++) fvec[k+data->dim] = func[k];
-				fvec[data->numParam-1] = func[data->dim];
+				fvec[nbrParam] = func[data->dim];
+				nbrParam += 1;
+				assert(nbrParam== data->numParam);
 			}
 		}
 
@@ -1136,7 +1131,7 @@ void shooting::MultipleShootingFunction(real const& t, model::mstate const& X, m
 			case 0 :	fvec[j] = X[j] - Xd[j];
 						fvec[j+dim] = Xp[j] - Xd[j];
 						break;
-			case 1 :	myModel.SwitchingStateFunction(t, j, X, Xp, fvec);
+			case 1 :	myModel.SwitchingStateFunction(t, j, X, Xp, Xd, fvec);
 						break;
 			case 2 :	fvec[j] = X[j] - Xp[j];
 						fvec[j+dim] = X[j+dim] - Xp[j+dim];

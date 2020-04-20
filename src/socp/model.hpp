@@ -39,11 +39,6 @@ public:
 
 	/**
 	* Constructor
-	*/
-	model(){};
-
-	/**
-	* Constructor
 	* @param stateDim the state dimension
 	*/
 	model(int const& stateDim) {dim = stateDim; odeIntTol = 1e-8;};
@@ -176,7 +171,7 @@ public:
 	* @param Xp the state at t+
 	* @param fvec a vector of the values of the function
 	*/
-	virtual void SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate & fvec) const{
+	virtual void SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate const& Xd, mstate & fvec) const{
 		// function to implement if mode_X = 1
 	};
 
@@ -376,6 +371,13 @@ protected:
 			}
 		#endif
 	};
+
+private:
+
+	/**
+	* Default constructor
+	*/
+	model() {};
 
 };
 

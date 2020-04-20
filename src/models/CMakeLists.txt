@@ -13,3 +13,7 @@ endif ()
 if (BUILD_INTERCEPTOR)
 	add_subdirectory (interceptor)
 endif ()
+
+if (BUILD_COVID19)
+	add_subdirectory (covid19)
+endif ()

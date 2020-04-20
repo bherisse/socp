@@ -34,8 +34,8 @@ hold on
 plot(data(:,1), (1-data(:,10))*4,'b','LineWidth',2)
 plot(data(:,1), ones(length(data(:,1)),1)*4,'--b','LineWidth',2)
 xlabel('time (days)')
-ylabel('controlled contagiousness (R_0)')
-title('controlled contagiousness (R_0)')
+ylabel('controlled contagiousness = R_0(1-u)')
+title('controlled contagiousness = R_0(1-u)')
 grid on;
 print -djpeg Rt
 

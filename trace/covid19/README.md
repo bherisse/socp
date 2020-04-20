@@ -46,6 +46,8 @@ However, the total infected population remains under 3%.
 
 ![](SR.jpg)
 
+![](Rt.jpg)
+
 Remarks
 ----------
 Note that initial covid-19 parameters should be refined.

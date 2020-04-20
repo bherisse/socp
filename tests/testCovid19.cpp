@@ -9,7 +9,7 @@
  *		- Control lockdown with minimum effort (in a quadratic way). This is motivated by the fact that lockdown effort has a great impact on economy.
  *		- One year after end of lockdown (2020, May 11 in France), the total removed (recovered + isolated + fatalities) population achieves 80% (which corresponds approximatively to natural herd immunity).
  *
- * Even for this "worst case" scenario (80% herd immunity will induce many fatalities), results confirm that end of lockdown should be very progressive to restrain the number of infections actively circulating along the next year. 
+ * Even for this "worst case" scenario (80% herd immunity will induce many fatalities), results confirm that end of lockdown should be very progressive to restrain the number of infections actively circulating along the year. 
  *
  * Note that initial covid-19 parameters should be refined.
  *

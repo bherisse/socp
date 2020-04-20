@@ -11,7 +11,7 @@ Objective
 ----------
 Using a SEIR model for the covid-19 epidemic, the problem considered here is the following:
 + Control lockdown with minimum effort (in a quadratic way). This is motivated by the fact that lockdown effort has a great impact on economy.
-+ One year after end of lockdown (2020, May 11 in France), the total removed (recovered + isolated + fatalities) population achieves 80% (which corresponds approximatively to natural herd immunity).
++ One year after end of full lockdown (2020, May 11 in France), the total removed (recovered + isolated + fatalities) population achieves 80% (which corresponds approximatively to natural herd immunity).
 
 SEIR model and control problem
 ----------

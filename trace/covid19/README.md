@@ -11,11 +11,11 @@ Objective
 ----------
 Using a SEIR model for the covid-19 epidemic, the problem considered here is the following:
 + Control lockdown with minimum effort (in a quadratic way). This is motivated by the fact that lockdown effort has a great impact on economy.
-+ One year after end of full lockdown (2020, May 11 in France), the total removed (recovered + isolated + fatalities) population achieves 80% (which corresponds approximatively to natural herd immunity).
++ One year after end of full lockdown (on May 11, 2020, in France), the total removed (recovered + isolated + fatalities) population achieves 80% (which corresponds approximatively to natural herd immunity).
 
 SEIR model and control problem
 ----------
-The SEIR model is recalled here, where the variable 'u' is the lockdown control (no lockdown if u=0):
+Simulation of a SEIR model is possible on the [epidemic calculator](https://gabgoh.github.io/COVID/index.html). Equations are recalled here, where the variable 'u' is introduced as a continuous lockdown control (no lockdown if u=0):
 ![](SEIR.png)
 
 The optimal control problem is the following:
@@ -25,16 +25,16 @@ Parameters
 ----------
 COVID-19 model:
 + R0 = 4
-+ Tinf = 10
-+ Tinc = 5
++ Tinf = 10 s
++ Tinc = 5 s
 
-Epidemic state on 2020, May 11 in France:
+Epidemic state on May 11, 2020, in France:
 + Susceptible: 90%
 + Exposed: 0.3%
 + Infectious: 1%
 + Removed: 8.7%
 
-Desired epidemic state on 2021, May 10:
+Desired epidemic state on May 10, 2021:
 + Removed : 80%
 
 Results

@@ -25,8 +25,8 @@ Parameters
 ----------
 COVID-19 model:
 + R0 = 4
-+ Tinf = 10 s
-+ Tinc = 5 s
++ Tinf = 10 days
++ Tinc = 5 days
 
 Epidemic state on May 11, 2020, in France:
 + Susceptible: 90%

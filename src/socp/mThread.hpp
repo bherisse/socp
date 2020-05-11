@@ -114,10 +114,10 @@ public:
 	*/
 	int join_for(int timeout) {
 		#if (__cplusplus >= 201103L && !__MINGW32__)
-			auto future = std::async(std::launch::async, &std::thread::join, &theThread);
-			if (future.wait_for(std::chrono::milliseconds(timeout)) == std::future_status::timeout) {
-				//std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
-				
+			mFuture = std::async(std::launch::async, &std::thread::join, &theThread);
+			if (mFuture.wait_for(std::chrono::milliseconds(timeout)) == std::future_status::timeout) {
+				std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
+								
 				return -1;
 			}
 		#else
@@ -129,9 +129,12 @@ public:
 				}
 			#elif defined (linux) /* Linux */
 				timespec timeStruct;
-				timeStruct.tv_nsec = timeout*1e6;
-				if (pthread_timedjoin_np(theThread, NULL, timeStruct) == ETIMEDOUT) {
-					//std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
+				clock_gettime(CLOCK_REALTIME, &timeStruct);
+				int timeout_sec = timeout/1000;
+				timeStruct.tv_sec += timeout_sec;
+				timeStruct.tv_nsec = (timeout-timeout_sec*1000)*1e6;
+				if (pthread_timedjoin_np(theThread, NULL, &timeStruct) == ETIMEDOUT) {
+					std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
 
 					return -1;
 				}
@@ -147,6 +150,9 @@ public:
 private:
 
 	hThread theThread;		///< the Thread handle
+	#if (__cplusplus >= 201103L && !__MINGW32__)
+		std::future<void> mFuture;
+	#endif
 
 };
 

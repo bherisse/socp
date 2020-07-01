@@ -116,14 +116,14 @@ public:
 		#if (__cplusplus >= 201103L && !__MINGW32__)
 			mFuture = std::async(std::launch::async, &std::thread::join, &theThread);
 			if (mFuture.wait_for(std::chrono::milliseconds(timeout)) == std::future_status::timeout) {
-				std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
+				//std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
 								
 				return -1;
 			}
 		#else
 			#ifdef WIN32 /* Windows */
 				if (WaitForSingleObject(theThread, (DWORD)timeout) == WAIT_TIMEOUT) {
-					std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
+					//std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
 
 					return -1;
 				}
@@ -134,7 +134,7 @@ public:
 				timeStruct.tv_sec += timeout_sec;
 				timeStruct.tv_nsec = (timeout-timeout_sec*1000)*1e6;
 				if (pthread_timedjoin_np(theThread, NULL, &timeStruct) == ETIMEDOUT) {
-					std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
+					//std::cout << std::endl << " ! The thread has not terminated within " << timeout << " ms" << std::endl;
 
 					return -1;
 				}

@@ -54,7 +54,7 @@ struct shooting::data_struct{
 /**
 * Constructor
 */
-shooting::shooting(model & model, int numMulti, int numThread): myModel(model){
+shooting::shooting(model & model, int numMulti, int numThread): myModel(model),stopFlag(0) {
 	// Shooting data
 	data = new data_struct;
 
@@ -94,7 +94,7 @@ shooting::shooting(model & model, int numMulti, int numThread): myModel(model){
 	// Parameters used by the hybrd algorithm
 	data->maxfev = 10000; 									// max call fcn
 	data->xtol = 1e-8;										// relative tolerance
-	myModel.SetODEIntPrecision(data->xtol);					// Set default precision for model integration
+	myModel.SetODEIntPrecision(data->xtol);			// Set default precision for model integration
 	data->epsfcn = 1e-15; 									// for forward-difference approximation
 	data->scalingMode = 1; 									// scaling (1: by the fcn, 2: by xscal)
 	data->factor = 1; 										// initial step bound
@@ -354,6 +354,44 @@ int shooting::SolveOCP(real const& continuationStep) const{
 	}
 
 	return 0;
+}
+
+/**
+* Solve OCP with timeout
+*/
+int shooting::SolveOCP(real const& continuationStep, double timeoutMS){
+	std::vector<void*> OCPargs(3);
+	int info = 0;
+
+	OCPargs[0] = (void*) this;
+	OCPargs[1] = (void*) &continuationStep;
+	OCPargs[2] = (void*) &info;
+
+	mThread OCPthread;
+	OCPthread.create(StaticSolveOCP,(void*) OCPargs.data());
+
+	if (OCPthread.join_for(timeoutMS)==-1){
+		stopFlag = -1;
+		OCPthread.join();
+		stopFlag = 0;
+		return -1;
+	}else
+		return info;
+}
+
+void shooting::StaticSolveOCP(void *arg){
+	void **userArgs = (void**) arg;
+	shooting* This = (shooting*) userArgs[0];
+	real* continuationStep = (real*) userArgs[1];
+	int* info = (int*) userArgs[2];
+
+	if (continuationStep<=0){
+		// no continuation
+		*info = This->SolveShooting();
+	}else{
+		// discrete continuation with step "continuationStep"
+		*info = This->SolveShootingContinuation(*continuationStep);
+	}
 }
 
 /**
@@ -1007,7 +1045,7 @@ int shooting::StaticShootingFunction(void *userData, int n, const real *param, r
 
 	for (int j=0;j<n;j++) fvec[j] = fvec_vec[j];
 
-	return iflag;
+	return This->stopFlag;
 };
 
 /**

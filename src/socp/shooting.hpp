@@ -69,7 +69,15 @@ public:
 	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
 	* @return result from the solver : 1 if success
 	*/
-	int SolveOCP(real const& continuationStep = real(0.0)) const;
+	int SolveOCP(real const& continuationStep) const;
+
+	/**
+	* Solve OCP with discrete time and state continuation and timeout in ms
+	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
+	* @param timeoutMS timeout in ms
+	* @return result from the solver : 1 if success
+	*/
+	int SolveOCP(real const& continuationStep, double timeoutMS);
 
 	/**
 	* Solve OCP with discrete continuation on a real parameter from Rdata to Rgoal
@@ -302,6 +310,14 @@ private:
 	* @param timeLine a vector to the timeline
 	*/
 	void ComputeTimeLine(std::vector<real> const& param, std::vector<real> & timeLine) const;
+
+	/**
+	* Static function for solving OCP with timeout
+	* @param arg a pointer to the arguments passed to the thread
+	*/
+	static void StaticSolveOCP(void *arg);
+
+	int stopFlag;
 
 };
 

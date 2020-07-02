@@ -12,63 +12,51 @@ find_package(PkgConfig)
 pkg_check_modules(PC_SOCP socp)
 set(SOCP_DEFINITIONS ${PC_SOCP_CFLAGS_OTHER})
 
+get_filename_component (_self_dir "${CMAKE_CURRENT_LIST_FILE}" PATH)
+
 find_path(SOCP_INCLUDE_DIR socp/shooting.hpp
           HINTS ${PC_SOCP_INCLUDEDIR} ${PC_SOCP_INCLUDE_DIRS}
-		  PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
-          PATH_SUFFIXES include)
+		  PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP" "${_self_dir}/../../.."
+          PATH_SUFFIXES include)		  
 
-
+find_library(SOCP_LIBRARY NAMES socp
+             HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
+			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP" "${_self_dir}/../../.."
+			 PATH_SUFFIXES lib)
 			 
 find_library(SOCP_LIBRARY_DEBUG NAMES socp_d
              HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
+			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP" "${_self_dir}/../../.."
 			 PATH_SUFFIXES lib)
 
 # Prefer static libraries in Windows over shared ones
 if(WIN32)
-	find_library(SOCP_LIBRARY NAMES socp
-             HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
-			 PATH_SUFFIXES lib)
-			 
-	find_library(SOCP_LIBRARY_DEBUG NAMES socp_d
-             HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
-			 PATH_SUFFIXES lib)
-			 
 	find_library(CMINPACK_LIBRARY 
 			 NAMES cminpack_s cminpack
              HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
+			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP" "${_self_dir}/../../.."
 			 PATH_SUFFIXES lib)
 			 
 	find_library(CMINPACK_LIBRARY_DEBUG 
-               NAMES cminpack_s_d cminpack_d
+               NAMES cminpack_s-gd cminpack-gd cminpack_s_d cminpack_d
                HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-               PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
+               PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP" "${_self_dir}/../../.."
                PATH_SUFFIXES lib)
 else(WIN32)
-	find_library(SOCP_LIBRARY NAMES socp
-             HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
-			 PATH_SUFFIXES lib lib64)
-			 
-	find_library(SOCP_LIBRARY_DEBUG NAMES socp_d
-             HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS} 
-			 PATHS "$ENV{PROGRAMFILES}/SOCP" "$ENV{PROGRAMW6432}/SOCP"
-			 PATH_SUFFIXES lib lib64)
-
 	find_library(CMINPACK_LIBRARY 
-               NAMES cminpack_s cminpack
+               NAMES cminpack
                HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS}
-               PATH_SUFFIXES lib lib64)
+               PATH_SUFFIXES lib)
 
 	find_library(CMINPACK_LIBRARY_DEBUG 
-               NAMES cminpack_s_d cminpack_d
+               NAMES cminpack-gd cminpack_d
                HINTS ${PC_SOCP_LIBDIR} ${PC_SOCP_LIBRARY_DIRS}
-               PATH_SUFFIXES lib lib64)
+               PATH_SUFFIXES lib)
 endif(WIN32)			 
 
+if(NOT CMINPACK_LIBRARY_DEBUG)
+  set(CMINPACK_LIBRARY_DEBUG ${CMINPACK_LIBRARY})
+endif(NOT CMINPACK_LIBRARY_DEBUG)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(socp  DEFAULT_MSG

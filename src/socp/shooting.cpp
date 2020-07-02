@@ -359,7 +359,7 @@ int shooting::SolveOCP(real const& continuationStep) const{
 /**
 * Solve OCP with timeout
 */
-int shooting::SolveOCP(real const& continuationStep, double timeoutMS){
+int shooting::SolveOCP(real const& continuationStep, double const timeoutMS){
 	std::vector<void*> OCPargs(3);
 	int info = 0;
 

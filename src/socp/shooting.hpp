@@ -77,7 +77,7 @@ public:
 	* @param timeoutMS timeout in ms
 	* @return result from the solver : 1 if success
 	*/
-	int SolveOCP(real const& continuationStep, double timeoutMS);
+	int SolveOCP(real const& continuationStep, double const timeoutMS);
 
 	/**
 	* Solve OCP with discrete continuation on a real parameter from Rdata to Rgoal

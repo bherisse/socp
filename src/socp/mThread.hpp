@@ -55,8 +55,10 @@ public:
 		#if (__cplusplus >= 201103L && !__MINGW32__)
 		#else
 			#ifdef WIN32 /* Windows */
-				if (theThread)
-					CloseHandle(theThread); // to avoid memory leaks
+			if (theThread) {
+				WaitForSingleObject(theThread, INFINITE);
+				CloseHandle(theThread); // to avoid memory leaks
+			}	
 			#elif defined (linux) /* Linux */
 			#else /* non supported plateform */
 				#error not defined for this platform
@@ -97,7 +99,7 @@ public:
 	*/
 	void join() {
 		#if (__cplusplus >= 201103L && !__MINGW32__)
-			theThread.join();
+				theThread.join();
 		#else
 			#ifdef WIN32 /* Windows */
 				WaitForSingleObject(theThread, INFINITE);

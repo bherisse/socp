@@ -372,7 +372,7 @@ int shooting::SolveOCP(real const& continuationStep, double const timeoutMS){
 
 	if (OCPthread.join_for(timeoutMS)==-1){
 		stopFlag = -1;
-		OCPthread.join();
+		OCPthread.~mThread();
 		stopFlag = 0;
 		return -1;
 	}else
@@ -385,7 +385,7 @@ void shooting::StaticSolveOCP(void *arg){
 	real* continuationStep = (real*) userArgs[1];
 	int* info = (int*) userArgs[2];
 
-	if (continuationStep<=0){
+	if (*continuationStep<=0){
 		// no continuation
 		*info = This->SolveShooting();
 	}else{

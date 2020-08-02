@@ -7,6 +7,7 @@
 
 #include "commonType.hpp"
 
+#include <sstream>
 #include <vector>
 
 #ifndef _ODETOOLS_H_
@@ -24,14 +25,67 @@ public:
 	typedef std::vector<real> odeVector;
 
 	/**
-	* ODE structure 
+	* Model structure
 	*/
-	struct odeStruct
+	struct modelStruct
 	{
-		odeStruct( ) { }
+		odeTools* m_ode;
 
-		virtual void operator()( odeVector const& X , odeVector& dXdt , real const& t ) const {	}
+		modelStruct(odeTools* ode) : m_ode(ode) { }
+
+		virtual void operator()(odeVector const& X, odeVector& dXdt, real const& t) const
+		{
+			dXdt = m_ode->Model(t, X);
+		}
 	};
+
+	/**
+	* Observer structure
+	*/
+	struct observerStruct
+	{
+		odeTools* m_ode;
+		std::stringstream & m_file;
+
+		observerStruct(odeTools* ode, std::stringstream & file) : m_ode(ode), m_file(file) { }
+
+		virtual void operator()(odeVector const& X, double const t) const
+		{
+			m_ode->Trace(t, X, m_file);
+		}
+	};
+
+	/**
+	* Constructor
+	*/
+	odeTools() : odeIntTol(1e-8) {};
+
+
+	real odeIntTol;								///< precision if dopri5 is used
+
+	/**
+	* Set relative tolerance if dopri5 is used
+	* @param xtol value of the precision
+	*/
+	virtual void SetODEIntPrecision(real const& xtol) {
+		odeIntTol = xtol;
+	};
+
+	/**
+	* State model of the vehicle : dX/dt = Model(t, X)
+	* @param t the time
+	* @param X the state
+	* @return dX/dt as a model state
+	*/
+	virtual odeVector Model(real const& t, odeVector const& X) const = 0;
+
+	/**
+	* Trace state
+	* @param t the time
+	* @param X the state
+	* @param file the file (sstream)
+	*/
+	virtual void Trace(real const& t, odeVector const& X, std::stringstream & file) const = 0;
 
 	/**
 	* Multiply an odeVector X by a real
@@ -67,7 +121,7 @@ public:
 	* @param step a time step
 	* @param ode structure of the ode
 	*/
-	static void RK1(real const& t, odeVector & X, real const& step, odeStruct const& ode);
+	static void RK1(real const& t, odeVector & X, real const& step, modelStruct const& ode);
 
 	/**
 	* compute one step RK2
@@ -87,7 +141,7 @@ public:
 	* @param step a time step
 	* @param ode structure of the ode
 	*/
-	static void RK2(real const& t, odeVector & X, real const& step, odeStruct const& ode);
+	static void RK2(real const& t, odeVector & X, real const& step, modelStruct const& ode);
 
 	/**
 	* compute one step RK4
@@ -107,7 +161,28 @@ public:
 	* @param step a time step
 	* @param ode structure of the ode
 	*/
-	static void RK4(real const& t, odeVector & X, real const& step, odeStruct const& ode);
+	static void RK4(real const& t, odeVector & X, real const& step, modelStruct const& ode);
+
+	/**
+	* Integrate model from t0 to tf with an observer
+	* @param model structure of the model
+	* @param X the state
+	* @param t0 initial time
+	* @param tf final time
+	* @param dt the step of integration
+	* @param observer structure of the observer
+	*/
+	static void integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt, observerStruct & _observer);
+
+	/**
+	* Integrate model from t0 to tf
+	* @param model structure of the model
+	* @param X the state
+	* @param t0 initial time
+	* @param tf final time
+	* @param dt the step of integration
+	*/
+	static void integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt);
 
 private:
 

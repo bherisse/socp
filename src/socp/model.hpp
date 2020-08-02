@@ -5,24 +5,17 @@
  *      Author: Bruno HERISSE (ONERA/DTIS)
  */
 #include <fstream>
-#include <sstream>
+#include <map>
 
 #include "commonType.hpp"
 
 #include "odeTools.hpp"
 
-// if boost installed
-#ifdef _USE_BOOST
-	#include "boost/numeric/odeint.hpp"
-	//using namespace boost::numeric::odeint;
-	typedef boost::numeric::odeint::runge_kutta_dopri5< odeTools::odeVector > dopri_stepper_type;
-#endif
-
 #ifndef _MODEL_H_
 #define _MODEL_H_
 
 /**************			model class (abstract)		******************************/
-class model
+class model : public odeTools
 {
 
 public:
@@ -41,7 +34,17 @@ public:
 	* Constructor
 	* @param stateDim the state dimension
 	*/
-	model(int const& stateDim) {dim = stateDim; odeIntTol = 1e-8;};
+	model(int const& stateDim, int _stepNbr = 10, std::string _fileTrace = std::string("")) :
+		dim(stateDim),
+		stepNbr(_stepNbr),
+		strFileTrace(_fileTrace)
+	{
+		parameters.clear();
+		// trace file
+		std::ofstream fileTrace;
+		fileTrace.open(strFileTrace.c_str(), std::ios::trunc);	// erase file
+		fileTrace.close();
+	};
 
 	/**
 	* Destructor
@@ -158,9 +161,9 @@ public:
 	* @param X the state at t
 	* @param fvec value of the function
 	*/
-	virtual void SwitchingTimesFunction(real const& t, mstate const& X, real & fvec) const{
+	virtual real SwitchingTimesFunction(real const& t, mstate const& X) const{
 		// function to implement if mode_t = 1
-		fvec = Hamiltonian(t,X);		// by default
+		return Hamiltonian(t,X);		// by default
 	};
 
 	/**
@@ -189,50 +192,15 @@ public:
 		odeIntTol = xtol;
 	};
 	
-protected:
+//protected:
 
-	int dim;							///< state dimension
+	int dim;									///< state dimension
 
-	real odeIntTol;						///< precision if dopri5 is used
+	std::map<std::string,real> parameters;		///< parameters for continuation
 
-	/**
-	* Model structure
-	*/
-	struct modelStruct : public odeTools::odeStruct
-	{
-		model* m_model;
+	std::string strFileTrace;					///< trace file
 
-		modelStruct( model* model ) : m_model( model ) { }
-
-		virtual void operator()( model::mstate const& X , model::mstate& dXdt , real const& t ) const
-		{
-			dXdt = m_model->Model(t, X);
-		}
-	};
-
-	/**
-	* Observer structure
-	*/
-	struct observerStruct
-	{
-		model* m_model;
-		std::stringstream & m_file;
-
-		observerStruct(model* const model, std::stringstream & file) : m_model( model ), m_file( file ) { }
-
-		virtual void operator()(model::mstate const& X, double const t) const
-		{
-			 m_model->Trace(t, X, m_file);
-		}
-	};
-
-	/**
-	* State model of the vehicle : dX/dt = Model(t, X)
-	* @param t the time
-	* @param X the state
-	* @return dX/dt as a model state
-	*/
-	virtual mstate Model(real const& t, mstate const& X) const = 0;
+	int  stepNbr;								///< step number for ModelInt
 
 	/**
 	* Control model of the vehicle : U = Control(t, X)
@@ -258,7 +226,26 @@ protected:
 	* @param isTrace trace flag (0 if no trace required)
 	* @return the state at tf
 	*/
-	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace) = 0;
+	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace) {
+		std::stringstream ss;
+
+		real dt = (tf - t0) / stepNbr;		// time step
+		mstate Xs = X;
+
+		if (isTrace) {
+			odeTools::integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this,ss));
+			// write in trace file
+			std::ofstream fileTrace;
+			fileTrace.open(strFileTrace.c_str(), std::ios::app);
+			fileTrace << ss.str();
+			fileTrace.close();
+		}
+		else {
+			odeTools::integrate(modelStruct(this), Xs, t0, tf, dt);
+		}
+
+		return Xs;
+	}
 
 	/**
 	* Trace state
@@ -315,62 +302,6 @@ protected:
 	* @return the mode
 	*/
 	virtual int GetMode(real const& t, mstate const& X) const {return 0;};
-	
-	/**
-	* Integrate model from t0 to tf with an observer
-	* @param model structure of the model
-	* @param X the state
-	* @param t0 initial time
-	* @param tf final time
-	* @param dt the step of integration
-	* @param observer structure of the observer
-	*/
-	static void integrate(modelStruct const& model, mstate & X, double const& t0, double const& tf, double const& dt, observerStruct const& observer){
-		#ifdef _USE_BOOST
-			// if boost used, use dopri 5
-			//boost::numeric::odeint::integrate(model, X, t0, tf, dt, observer);
-			boost::numeric::odeint::integrate_const( boost::numeric::odeint::make_dense_output< dopri_stepper_type >(model.m_model->odeIntTol, model.m_model->odeIntTol), model, X, t0, tf, dt, observer);
-		#else
-			real t = t0;							// time
-			observer(X,t);
-			while (t < (tf-dt/2)) {
-				if (t + dt > tf) {
-					odeTools::RK4(t, X, tf-t, model);
-				}
-				else {
-					odeTools::RK4(t, X, dt, model);
-				}
-				t += dt;
-				observer(X,t);	
-			}
-		#endif
-	};
-
-	/**
-	* Integrate model from t0 to tf
-	* @param model structure of the model
-	* @param X the state
-	* @param t0 initial time
-	* @param tf final time
-	* @param dt the step of integration
-	*/
-	static void integrate(modelStruct const& model, mstate & X, double const& t0, double const& tf, double const& dt){
-		#ifdef _USE_BOOST
-			// if boost used, use dopri 5
-			//boost::numeric::odeint::integrate(model, X, t0, tf, dt);
-			boost::numeric::odeint::integrate_adaptive( boost::numeric::odeint::make_dense_output< dopri_stepper_type >(model.m_model->odeIntTol, model.m_model->odeIntTol), model, X, t0, tf, dt);
-		#else
-			real t = t0;			// time
-			while (t < (tf-dt/2)) {
-				if (t+dt > tf){
-					odeTools::RK4(t, X, tf-t, model);
-				}else{
-					odeTools::RK4(t, X, dt, model);
-				}				
-				t += dt;
-			}
-		#endif
-	};
 
 private:
 

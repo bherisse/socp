@@ -25,9 +25,9 @@ int main(int argc, char** argv) {
 	
 	// new model object
 	std::string my_fileTrace("../../trace/goddard/trace.dat");		// file full path for trace
-	goddard my_goddard(my_fileTrace);								// The OCP is defined in the goddard class
+	goddard my_goddard(my_fileTrace,10);							// The OCP is defined in the goddard class
 	int goddardDim = my_goddard.GetDim();							// GetDim return the dimension of the dynamic model
-	my_goddard.GetParameterData().mu2 = 1;							// we start with a quadratic cost on the control
+	my_goddard.SetParameterDataName("mu2",1.0);						// we start with a quadratic cost on the control
 
 	// new shooting object
 	int nMulti = 6;													// multiple shooting parameter (>0)
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
 	time1 = clock();
 	
 	// start with no drag to compute a better guess from the trivial guess
-	my_goddard.GetParameterData().KD = 0.0;
+	my_goddard.SetParameterDataName("KD", 0.0);
 
 	// solve OCP
 	std::cout << "	Solve OCP without drag (KD = 0): ";
@@ -102,13 +102,13 @@ int main(int argc, char** argv) {
 	// then, start a continuation on KD
 	std::cout << "	Continuation on parameter KD (KD = 0 to 310): ";
 	if (info==1)	
-		info = my_shooting.SolveOCP(1.0, my_goddard.GetParameterData().KD, 310);		// solve OCP with continuation step 1
+		info = my_shooting.SolveOCP(1.0, "KD", 310.0);		// solve OCP with continuation step 1
 	std::cout << "OK = " << info << std::endl;
 
 	// then, start a continuation on mu2 
 	std::cout << "	Continuation on parameter mu2 (mu2 = 1 to 0.2): ";
 	if (info == 1)
-		info = my_shooting.SolveOCP(1.0, my_goddard.GetParameterData().mu2, 0.2); // solve OCP with continuation step 1
+		info = my_shooting.SolveOCP(1.0, "mu2", 0.2); // solve OCP with continuation step 1
 	std::cout << "OK = " << info << std::endl;
 
 	// to set mu2 = 0, we need to change the structure of the solution (Bang-Singular-Off)
@@ -145,10 +145,10 @@ int main(int argc, char** argv) {
 	my_shooting.InitShooting(vt, vX);							// init shooting with the guess
 
 	// change cost of the model (norm only to maximize the mass)
-	my_goddard.GetParameterData().mu2 = 0;
+	my_goddard.SetParameterDataName("mu2", 0.0);
 	// set singular control 
 	//my_goddard->GetParameterData()->singularControl = 0.6;	// constant approximation for the singular control
-	my_goddard.GetParameterData().singularControl = -1;			// if singularControl < 0, then true explicit singular control
+	my_goddard.SetParameterDataName("singularControl", -1);		// if singularControl < 0, then true explicit singular control
 
 	// solve OCP
 	std::cout << "	Solve OCP with singular control (mu2 = 0): ";

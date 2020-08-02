@@ -915,8 +915,7 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 			for (int k=0;k<2*data->dim;k++)	Xp[k] = param[index+k];
 			// Switching function for free intermediate times
 			if (data->mode_t[i+1]==1){
-				real Si;
-				myModel.SwitchingTimesFunction(t2,X_tf,Si);
+				real Si = myModel.SwitchingTimesFunction(t2,X_tf);
 				fvec[nbrParam] = Si;
 				nbrParam += 1;
 			}
@@ -1128,8 +1127,7 @@ void shooting::ShootingFunctionParThread(int n, real *param, real *fvec, int thr
 			for (int k=0;k<2*data->dim;k++)	Xp[k] = param[index+k];
 			// Switching function for free intermediate times
 			if (data->mode_t[j+1]==1){
-				real Si;
-				myModel.SwitchingTimesFunction(t2,X2,Si);
+				real Si = myModel.SwitchingTimesFunction(t2,X2);
 				fvec[nbrParam] = Si;
 				nbrParam += 1;
 			}

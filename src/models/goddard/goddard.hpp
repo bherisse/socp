@@ -26,20 +26,20 @@ public:
 	* Vehicle parameters
 	*/
 	struct parameters_struct{
-		real C;					///< coefficient for thrust
-		real b;					///< coefficient for mass flow rate
-		real KD;				///< coefficient for drag
-		real kr;				///< coefficient for density of air
-		real u_max;				///< max normalized control
-		real mu1;				///< weight for the cost on the norm of the control in [0,1]
-		real mu2;				///< weight for the quadratic cost on the control in [0,1]
-		real singularControl;	///< singular control value
+		real C = 3.5;					///< coefficient for thrust
+		real b = 7.0;					///< coefficient for mass flow rate
+		real KD = 310.0;				///< coefficient for drag
+		real kr = 500.0;				///< coefficient for density of air
+		real u_max = 1.0;				///< max normalized control
+		real mu1 = 1.0;					///< weight for the cost on the norm of the control in [0,1]
+		real mu2 = 0.0;					///< weight for the quadratic cost on the control in [0,1]
+		real singularControl = -1;		///< singular control value
 	};
 
 	/**
 	* Constructor
 	*/
-	goddard(std::string the_fileTrace = std::string(""));
+	goddard(std::string the_fileTrace = std::string(""), int stepNbr = 10);
 
 	/**
 	* Destructor
@@ -47,15 +47,9 @@ public:
 	virtual ~goddard();
 
 	/**
-	* Get data
-	* @return parameters structure
-	*/
-	parameters_struct & GetParameterData();
-
-	/**
 	* Switching function 
 	*/
-	virtual void SwitchingTimesFunction(real const& t, mstate const& X, real & fvec) const;
+	virtual real SwitchingTimesFunction(real const& t, mstate const& X) const;
 
 	/**
 	* Update Switching times

@@ -16,36 +16,27 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 struct goddard::data_struct {
-	int n;										///< state dimension
-	parameters_struct parameters;				///< those parameters can be used for continuation
 	std::vector<real> switchingTimes;			///< switching times for singular control
-	int  stepNbr;								///< step number for ModelInt
-	std::string strFileTrace;					///< trace file
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-goddard::goddard(std::string the_fileTrace) : model(7) {
+goddard::goddard(std::string the_fileTrace, int stepNbr) : model(7, stepNbr, the_fileTrace) {
 	// vehicle data
 	data = new data_struct;
-	data->n = dim;									// state dimension
-		data->parameters.C = 3.5;					// coefficient for thrust
-		data->parameters.b = 7;						// coefficient for mass flow rate
-		data->parameters.KD = 310;					// coefficient for drag
-		data->parameters.kr = 500;					// coefficient for density of air
-		data->parameters.u_max = 1;					// max normalized control
-		data->parameters.mu1 = 1;					// weight for the cost on the norm of the control in [0,1]
-		data->parameters.mu2 = 0;					// weight for the quadratic cost on the control in [0,1]
-		data->parameters.singularControl = -1;		// a constant approximation of the singular arc
+
 	data->switchingTimes = std::vector<real>(2);
 	data->switchingTimes[0] = 0.0227;				// first switch time for singular control
 	data->switchingTimes[1] = 0.08;					// second switch time for singular control
-	data->stepNbr = 10;								// step number for ModelInt
-	data->strFileTrace = the_fileTrace;				// trace file
 
-	// trace file
-	std::ofstream fileTrace;
-	fileTrace.open(data->strFileTrace.c_str(), std::ios::trunc);	// erase file
-	fileTrace.close();
+	parameters_struct parametersStruct;
+	parameters["C"] = parametersStruct.C;								// C: coefficient for thrust
+	parameters["b"] = parametersStruct.b;								// b: coefficient for mass flow rate
+	parameters["KD"] = parametersStruct.KD;								// KD: coefficient for drag
+	parameters["kr"] = parametersStruct.kr;								// kr: coefficient for density of air
+	parameters["u_max"] = parametersStruct.u_max;						// u_max: max normalized control
+	parameters["mu1"] = parametersStruct.mu1;							// mu1: weight for the cost on the norm of the control in [0,1]
+	parameters["mu2"] = parametersStruct.mu2;							// mu2: weight for the quadratic cost on the control in [0,1]
+	parameters["singularControl"] = parametersStruct.singularControl;	// singularControl: a constant approximation of the singular arc
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -76,10 +67,11 @@ goddard::mstate goddard::Model(real const& t, mstate const& X) const {
 	real r = sqrt(x*x + y*y + z*z);
 	real v = sqrt(vx*vx + vy*vy + vz*vz);
 	real pvdotv = p_vx*vx + p_vy*vy + p_vz*vz;
-	real b = data->parameters.b;
-	real C = data->parameters.C;
-	real KD = data->parameters.KD;
-	real kr = data->parameters.kr;
+	
+	real b = parameters.at("b");
+	real C = parameters.at("C");
+	real KD = parameters.at("KD");
+	real kr = parameters.at("kr");
 	real g = 1 / r / r;											// normalized gravity (g=1 for r=1 that corresponds to Earth radius)
 	real norm_pv = sqrt(p_vx*p_vx + p_vy*p_vy + p_vz*p_vz);
 
@@ -129,10 +121,10 @@ goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 	real r = sqrt(x*x + y*y + z*z);
 	real v = sqrt(vx*vx + vy*vy + vz*vz);
 	real pvdotv = p_vx*vx + p_vy*vy + p_vz*vz;
-	real b = data->parameters.b;
-	real C = data->parameters.C;
-	real KD = data->parameters.KD;
-	real kr = data->parameters.kr;
+	real b = parameters.at("b");
+	real C = parameters.at("C");
+	real KD = parameters.at("KD");
+	real kr = parameters.at("kr");
 	real g = 1 / r / r;											// normalized gravity (g=1 for r=1 that corresponds to R_Earth)
 	real norm_pv = sqrt(p_vx*p_vx + p_vy*p_vy + p_vz*p_vz);
 
@@ -140,12 +132,12 @@ goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 	real Switch;
 	real alpha_u = 0;
 	real u[3];
-	Switch = data->parameters.mu1 - b*p_mass - C / mass*norm_pv;		// switching function
+	Switch = parameters.at("mu1") - b*p_mass - C / mass*norm_pv;		// switching function
 
-	if (data->parameters.mu2 > 0) {
+	if (parameters.at("mu2") > 0) {
 		// if a quadratic cost is used 
 		if (Switch<0) {
-			alpha_u = -Switch / 2 / data->parameters.mu2;
+			alpha_u = -Switch / 2 / parameters.at("mu2");
 		}
 		else {			//(Switch>=0)
 			alpha_u = 0;
@@ -157,11 +149,11 @@ goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 			alpha_u = 1.0;
 		}
 		else if (t>data->switchingTimes[0] && t <= data->switchingTimes[1]) {
-			if (data->parameters.singularControl < 0) {
+			if (parameters.at("singularControl") < 0) {
 				alpha_u = GetSingularControl(t, X);		// true singular control 
 			}
 			else {
-				alpha_u = data->parameters.singularControl;		// approximation of the singular control by a constant parameter
+				alpha_u = parameters.at("singularControl");		// approximation of the singular control by a constant parameter
 			}
 		}
 		else {
@@ -175,11 +167,12 @@ goddard::mcontrol goddard::Control(real const& t, mstate const& X) const {
 	real norm_u = fabs(alpha_u);
 
 	// saturation
-	if (norm_u>data->parameters.u_max) {
-		u[0] = u[0] / norm_u*data->parameters.u_max;
-		u[1] = u[1] / norm_u*data->parameters.u_max;
-		u[2] = u[2] / norm_u*data->parameters.u_max;
-		norm_u = data->parameters.u_max;
+	real u_max = parameters.at("u_max");
+	if (norm_u>u_max) {
+		u[0] = u[0] / norm_u*u_max;
+		u[1] = u[1] / norm_u*u_max;
+		u[2] = u[2] / norm_u*u_max;
+		norm_u = u_max;
 	}
 
 	mcontrol control(3);
@@ -213,10 +206,10 @@ real goddard::GetSingularControl(real t, mstate const& X) const {
 	real v = sqrt(vx*vx + vy*vy + vz*vz);
 	real rdotv = x*vx + y*vy + z*vz;
 	real pvdotv = p_vx*vx + p_vy*vy + p_vz*vz;
-	real b = data->parameters.b;
-	real C = data->parameters.C;
-	real KD = data->parameters.KD;
-	real kr = data->parameters.kr;
+	real b = parameters.at("b");
+	real C = parameters.at("C");
+	real KD = parameters.at("KD");
+	real kr = parameters.at("kr");
 	real g = 1 / r / r;										// normalized gravity (g=1 for r=1 that corresponds to Earth radius)
 	real norm_pv = sqrt(p_vx*p_vx + p_vy*p_vy + p_vz*p_vz);
 	real D = KD*exp(-kr*(r - 1));
@@ -280,10 +273,10 @@ real goddard::Hamiltonian(real const& t, mstate const& X) const {
 	real r = sqrt(x*x + y*y + z*z);
 	real v = sqrt(vx*vx + vy*vy + vz*vz);
 	real pvdotv = p_vx*vx + p_vy*vy + p_vz*vz;
-	real b = data->parameters.b;
-	real C = data->parameters.C;
-	real KD = data->parameters.KD;
-	real kr = data->parameters.kr;
+	real b = parameters.at("b");
+	real C = parameters.at("C");
+	real KD = parameters.at("KD");
+	real kr = parameters.at("kr");
 	real g = 1 / r / r;								// normalized gravity (g=1 for r=1 that corresponds to Earth radius)
 
 													// control computation
@@ -291,7 +284,7 @@ real goddard::Hamiltonian(real const& t, mstate const& X) const {
 	real norm_u = sqrt(u[0] * u[0] + u[1] * u[1] + u[2] * u[2]);
 
 	// H is computed
-	real H = data->parameters.mu1*norm_u + data->parameters.mu2*norm_u*norm_u
+	real H = parameters.at("mu1")*norm_u + parameters.at("mu2")*norm_u*norm_u
 		+ p_x*vx + p_y*vy + p_z*vz
 		+ p_vx*(-KD*v*vx*exp(-kr*(r - 1)) / mass - g*x / r + C*u[0] / mass)
 		+ p_vy*(-KD*v*vy*exp(-kr*(r - 1)) / mass - g*y / r + C*u[1] / mass)
@@ -305,20 +298,19 @@ real goddard::Hamiltonian(real const& t, mstate const& X) const {
 goddard::mstate goddard::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace) {
 	std::stringstream ss;
 
-	real t = t0;							// time
-	real dt = (tf - t0) / data->stepNbr;		// time step
+	real dt = (tf - t0) / stepNbr;		// time step
 	mstate Xs = X;
 
 	if (isTrace) {
-		integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this, ss));
+		odeTools::integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this,ss));
 		// write in trace file
 		std::ofstream fileTrace;
-		fileTrace.open(data->strFileTrace.c_str(), std::ios::app);
+		fileTrace.open(strFileTrace.c_str(), std::ios::app);
 		fileTrace << ss.str();
 		fileTrace.close();
 	}
 	else {
-		integrate(modelStruct(this), Xs, t0, tf, dt);
+		odeTools::integrate(modelStruct(this), Xs, t0, tf, dt);
 	}
 
 	return Xs;
@@ -343,17 +335,12 @@ void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) co
 	file << H << "\t";
 
 	// additional trace
-	real Switch = data->parameters.mu1 - data->parameters.b*X[13] - data->parameters.C / X[6] * sqrt(X[10] * X[10] + X[11] * X[11] + X[12] * X[12]);
+	real Switch = parameters.at("mu1") - parameters.at("b")*X[13] - parameters.at("C") / X[6] * sqrt(X[10] * X[10] + X[11] * X[11] + X[12] * X[12]);
 	file << Switch << std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-goddard::parameters_struct & goddard::GetParameterData() {
-	return data->parameters;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////
-void goddard::SwitchingTimesFunction(real const& t, mstate const& X, real & fvec) const {
+real goddard::SwitchingTimesFunction(real const& t, mstate const& X) const {
 	// current state value
 	real x = X[0];
 	real y = X[1];
@@ -370,16 +357,19 @@ void goddard::SwitchingTimesFunction(real const& t, mstate const& X, real & fvec
 	real p_vz = X[12];
 	real p_mass = X[13];
 
-	real b = data->parameters.b;
-	real C = data->parameters.C;
+	real b = parameters.at("b");
+	real C = parameters.at("C");
 	real norm_pv = sqrt(p_vx*p_vx + p_vy*p_vy + p_vz*p_vz);
 
 	// Switching function
-	//real Switch = data->parameters.mu1 - b*p_mass - C/mass*norm_pv;
+	//real Switch = parameters.at("mu1") - b*p_mass - C/mass*norm_pv;
 
 	// Using Switch or Hamiltonian is equivalent in this case (free final time)
+	real fvec = 0;
 	//fvec = Switch;
 	fvec = Hamiltonian(t, X);
+
+	return fvec;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -391,43 +381,10 @@ void goddard::SwitchingTimesUpdate(std::vector<real> const& switchingTimes) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 void goddard::SetParameterDataName(std::string name, real value) {
-	if (name == std::string("KD"))
-		data->parameters.KD = value;
-	if (name == std::string("C"))
-		data->parameters.C = value;
-	if (name == std::string("b"))
-		data->parameters.b = value;
-	if (name == std::string("kr"))
-		data->parameters.kr = value;
-	if (name == std::string("mu2"))
-		data->parameters.mu2 = value;
-	if (name == std::string("mu1"))
-		data->parameters.mu1 = value;
-	if (name == std::string("singularControl"))
-		data->parameters.singularControl = value;
-	if (name == std::string("u_max"))
-		data->parameters.u_max = value;
+	parameters.at(name) = value;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 real & goddard::GetParameterDataName(std::string name) {
-	if (name == std::string("KD"))
-		return data->parameters.KD;
-	if (name == std::string("C"))
-		return data->parameters.C;
-	if (name == std::string("b"))
-		return data->parameters.b;
-	if (name == std::string("kr"))
-		return data->parameters.kr;
-	if (name == std::string("mu2"))
-		return data->parameters.mu2;
-	if (name == std::string("mu1"))
-		return data->parameters.mu1;
-	if (name == std::string("singularControl"))
-		return data->parameters.singularControl;
-	if (name == std::string("u_max"))
-		return data->parameters.u_max;
-
-	real res = 0.0;
-	return res;
+	return parameters.at(name);
 }

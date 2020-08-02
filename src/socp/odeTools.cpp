@@ -7,6 +7,13 @@
 
 #include "odeTools.hpp"
 
+// if boost installed
+#ifdef _USE_BOOST
+#include "boost/numeric/odeint.hpp"
+ //using namespace boost::numeric::odeint;
+typedef boost::numeric::odeint::runge_kutta_dopri5< odeTools::odeVector > dopri_stepper_type;
+#endif
+
 /**
 * Multiply a odeVector X by a real
 */
@@ -40,7 +47,7 @@ odeTools::odeVector odeTools::RK1(real const& t, odeVector const& X, real const&
 	return AddState(X,MultState(step,function(t, X, context)));
 }
 
-void odeTools::RK1(real const& t, odeVector & X, real const& step, odeStruct const& ode) {
+void odeTools::RK1(real const& t, odeVector & X, real const& step, modelStruct const& ode) {
 	odeVector F1 = X;
 
 	ode(X, F1, t);
@@ -58,7 +65,7 @@ odeTools::odeVector odeTools::RK2(real const& t, odeVector const& X, real const&
 	return AddState(X,MultState(step,F2));
 }
 
-void odeTools::RK2(real const& t, odeVector & X, real const& step, odeStruct const& ode) {
+void odeTools::RK2(real const& t, odeVector & X, real const& step, modelStruct const& ode) {
 	odeVector F1 = X, F2 = X;
 
 	ode(X, F1, t);
@@ -79,7 +86,7 @@ odeTools::odeVector odeTools::RK4(real const& t, odeVector const& X, real const&
 	return AddState(X,MultState(step/6.0,AddState(F1,AddState(F4,MultState(2.0, AddState(F2,F3))))));
 }
 
-void odeTools::RK4(real const& t, odeVector & X, real const& step, odeStruct const& ode){
+void odeTools::RK4(real const& t, odeVector & X, real const& step, modelStruct const& ode){
 	odeVector F1=X, F2=X, F3=X, F4=X;
 	
 	ode(X, F1, t);
@@ -89,3 +96,51 @@ void odeTools::RK4(real const& t, odeVector & X, real const& step, odeStruct con
 
 	X = AddState(X,MultState(step/6.0,AddState(F1,AddState(F4,MultState(2.0, AddState(F2,F3))))));
 }
+
+/**
+* Integrate model from t0 to tf with an observer
+*/
+void odeTools::integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt, observerStruct & _observer) {
+#ifdef _USE_BOOST
+	// if boost used, use dopri 5
+	//boost::numeric::odeint::integrate(model, X, t0, tf, dt, observer);
+	//boost::numeric::odeint::integrate_const(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(_model.m_model->odeIntTol, _model.m_model->odeIntTol), _model, X, t0, tf, dt, _observer);
+	boost::numeric::odeint::integrate_const(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(1e-6, 1e-6), _model, X, t0, tf, dt, _observer);
+#else
+	real t = t0;							// time
+	_observer(X, t);
+	while (t < (tf - dt / 2)) {
+		if (t + dt > tf) {
+			odeTools::RK4(t, X, tf - t, _model);
+		}
+		else {
+			odeTools::RK4(t, X, dt, _model);
+		}
+		t += dt;
+		_observer(X, t);
+	}
+#endif
+};
+
+/**
+* Integrate model from t0 to tf
+*/
+void odeTools::integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt) {
+#ifdef _USE_BOOST
+	// if boost used, use dopri 5
+	//boost::numeric::odeint::integrate(model, X, t0, tf, dt);
+	//boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(_model.m_model->odeIntTol, _model.m_model->odeIntTol), _model, X, t0, tf, dt);
+	boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(1e-6, 1e-6), _model, X, t0, tf, dt);
+#else
+	real t = t0;			// time
+	while (t < (tf - dt / 2)) {
+		if (t + dt > tf) {
+			odeTools::RK4(t, X, tf - t, _model);
+		}
+		else {
+			odeTools::RK4(t, X, dt, _model);
+		}
+		t += dt;
+	}
+#endif
+};

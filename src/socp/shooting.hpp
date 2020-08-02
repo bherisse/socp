@@ -89,6 +89,17 @@ public:
 	int SolveOCP(real const& continuationStep, real & Rdata, real const& Rgoal) const;
 
 	/**
+	* Solve OCP with discrete continuation on a real parameter from Rdata to Rgoal
+	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
+	* @param Rdata string data for continuation
+	* @param Rgoal real number to achieve
+	* @return result from the solver : 1 if success (Rgoal is achieved)
+	*/
+	int SolveOCP(real const& continuationStep, std::string Rdata, real const& Rgoal) const {
+		return SolveOCP(continuationStep, myModel.parameters[Rdata], Rgoal);
+	};
+
+	/**
 	* Function to move the model from ti to tf
 	* @param ti initial time
 	* @param Xi initial state

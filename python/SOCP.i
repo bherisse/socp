@@ -1,6 +1,8 @@
 %module(directors="1", allprotected="1") pySOCP
+%feature("director") model;
 %include "std_string.i"
 %include "std_vector.i"
+%include "std_map.i"
 %include "carrays.i"
 %{
 
@@ -25,4 +27,5 @@ namespace std {
    %template(dVector) vector<double>;
    %template(iMatrix) vector<vector<int>>;
    %template(dMatrix) vector<vector<double>>;
+   %template(sdMap) map<string, double>;
 };

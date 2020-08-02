@@ -233,7 +233,7 @@ public:
 		mstate Xs = X;
 
 		if (isTrace) {
-			odeTools::integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this,ss));
+			integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this,ss));
 			// write in trace file
 			std::ofstream fileTrace;
 			fileTrace.open(strFileTrace.c_str(), std::ios::app);
@@ -241,7 +241,7 @@ public:
 			fileTrace.close();
 		}
 		else {
-			odeTools::integrate(modelStruct(this), Xs, t0, tf, dt);
+			integrate(modelStruct(this), Xs, t0, tf, dt);
 		}
 
 		return Xs;

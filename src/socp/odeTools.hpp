@@ -172,7 +172,7 @@ public:
 	* @param dt the step of integration
 	* @param observer structure of the observer
 	*/
-	static void integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt, observerStruct & _observer);
+	static void integrate(modelStruct const& _model, odeVector & X, double const& t0, double const& tf, double const& dt, observerStruct const& _observer);
 
 	/**
 	* Integrate model from t0 to tf
@@ -182,7 +182,7 @@ public:
 	* @param tf final time
 	* @param dt the step of integration
 	*/
-	static void integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt);
+	static void integrate(modelStruct const& _model, odeVector & X, double const& t0, double const& tf, double const& dt);
 
 private:
 

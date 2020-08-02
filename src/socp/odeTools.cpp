@@ -100,7 +100,7 @@ void odeTools::RK4(real const& t, odeVector & X, real const& step, modelStruct c
 /**
 * Integrate model from t0 to tf with an observer
 */
-void odeTools::integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt, observerStruct & _observer) {
+void odeTools::integrate(modelStruct const& _model, odeVector & X, double const& t0, double const& tf, double const& dt, observerStruct const& _observer) {
 #ifdef _USE_BOOST
 	// if boost used, use dopri 5
 	//boost::numeric::odeint::integrate(model, X, t0, tf, dt, observer);
@@ -125,7 +125,7 @@ void odeTools::integrate(modelStruct & _model, odeVector & X, double const& t0, 
 /**
 * Integrate model from t0 to tf
 */
-void odeTools::integrate(modelStruct & _model, odeVector & X, double const& t0, double const& tf, double const& dt) {
+void odeTools::integrate(modelStruct const& _model, odeVector & X, double const& t0, double const& tf, double const& dt) {
 #ifdef _USE_BOOST
 	// if boost used, use dopri 5
 	//boost::numeric::odeint::integrate(model, X, t0, tf, dt);

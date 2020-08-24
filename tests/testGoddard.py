@@ -29,7 +29,7 @@ print("Initialize the OCP: ")
 # new model object
 my_fileTrace = "../trace/goddard/trace.dat"                     # file full path for trace
 step = 10                                                       # step for integration
-my_goddard = pyGoddard.goddard(my_fileTrace, step);                   # The OCP is defined in the goddard class
+my_goddard = pyGoddard.goddard(my_fileTrace, step);             # The OCP is defined in the goddard class
 goddardDim = my_goddard.GetDim();              # GetDim return the dimension of the dynamic model
 my_goddard.SetParameterDataName("mu2", 1);   # we start with a quadratic cost on the control
                                                             
@@ -163,20 +163,18 @@ print(" Computing time: " + str(time) + " secondes.")
 #################################################################################################################################
 print("Trace the solution: ")
 print(" Writting trace/goddard/trace.dat")
-my_shooting.Trace()
-
-#################################################################################################################################
-# input("\nPress enter to exit !")
-dataRes = np.loadtxt(my_fileTrace, usecols=range(19))
-
-# Plot the result
-normU = list(range(len(dataRes[:,1])))
-for i in range(len(dataRes[:,1])):
-    normU[i] = math.sqrt(dataRes[i,15]**2+dataRes[i,16]**2+dataRes[i,17]**2)
-plt.figure(1)
-plt.clf()
-plt.plot(dataRes[:,0], normU, '--')
-plt.xlabel('t')
-plt.legend(['normU'])
-plt.grid()
-plt.savefig('goddardControl.png')
+if info==1:
+    my_shooting.Trace()
+    
+    # Plot the result
+    dataRes = np.loadtxt(my_fileTrace, usecols=range(19))
+    normU = list(range(len(dataRes[:,1])))
+    for i in range(len(dataRes[:,1])):
+        normU[i] = math.sqrt(dataRes[i,15]**2+dataRes[i,16]**2+dataRes[i,17]**2)
+    plt.figure(1)
+    plt.clf()
+    plt.plot(dataRes[:,0], normU, '--')
+    plt.xlabel('t')
+    plt.legend(['normU'])
+    plt.grid()
+    plt.savefig('goddardControl.png')

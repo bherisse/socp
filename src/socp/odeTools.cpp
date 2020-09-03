@@ -105,7 +105,7 @@ void odeTools::integrate(modelStruct const& _model, odeVector & X, double const&
 	// if boost used, use dopri 5
 	//boost::numeric::odeint::integrate(model, X, t0, tf, dt, observer);
 	//boost::numeric::odeint::integrate_const(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(_model.m_model->odeIntTol, _model.m_model->odeIntTol), _model, X, t0, tf, dt, _observer);
-	boost::numeric::odeint::integrate_const(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(1e-6, 1e-6), _model, X, t0, tf, dt, _observer);
+	boost::numeric::odeint::integrate_const(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(odeIntTol, odeIntTol), _model, X, t0, tf, dt, _observer);
 #else
 	real t = t0;							// time
 	_observer(X, t);
@@ -130,7 +130,7 @@ void odeTools::integrate(modelStruct const& _model, odeVector & X, double const&
 	// if boost used, use dopri 5
 	//boost::numeric::odeint::integrate(model, X, t0, tf, dt);
 	//boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(_model.m_model->odeIntTol, _model.m_model->odeIntTol), _model, X, t0, tf, dt);
-	boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(1e-6, 1e-6), _model, X, t0, tf, dt);
+	boost::numeric::odeint::integrate_adaptive(boost::numeric::odeint::make_dense_output< dopri_stepper_type >(odeIntTol, odeIntTol), _model, X, t0, tf, dt);
 #else
 	real t = t0;			// time
 	while (t < (tf - dt / 2)) {

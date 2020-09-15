@@ -43,12 +43,12 @@ vt = pySOCP.dVector(nMulti+1);                              # time line (t0 .. t
 vX = pySOCP.dMatrix(nMulti+1);                              # state and costate at times vt
                             
 # set mode for final time and state
-mode_tf = 1;                                                # 0 for fixed time, 1 for free optimized time, 2 otherwise
-mode_Xf = pySOCP.iVector(goddardDim,0);                     # 0 for fixed state, 1 for free optimized state, 2 otherwise
-mode_Xf[3] = 1; # vxf is free
-mode_Xf[4] = 1; # vyf is free
-mode_Xf[5] = 1; # vzf is free
-mode_Xf[6] = 1; # mf is free
+mode_tf = pySOCP.model.FREE;                                # 0 for fixed time, 1 for free optimized time, 2 otherwise
+mode_Xf = pySOCP.iVector(goddardDim,pySOCP.model.FIXED);    # 0 for fixed state, 1 for free optimized state, 2 otherwise
+mode_Xf[3] = pySOCP.model.FREE; # vxf is free
+mode_Xf[4] = pySOCP.model.FREE; # vyf is free
+mode_Xf[5] = pySOCP.model.FREE; # vzf is free
+mode_Xf[6] = pySOCP.model.FREE; # mf is free
 my_shooting.SetMode(mode_tf, mode_Xf);     # setting mode to the solver
 
 # set initial guess for the shooting (trivial guess)
@@ -128,16 +128,16 @@ for i in range(0, nMulti):
     vX[i] = my_shooting.Move(vt[i]);   # Compute the guess on this new timeline
 
 # update mode (define the new structure of the trajectory)
-mode_t = pySOCP.iVector(nMulti+1, 2);                   # define time modes on the timeline             
-mode_t[0] = 0;  # ti (fixed)
-mode_t[2] = 1;  # SwitchingTimes_1 (free)
-mode_t[4] = 1;  # SwitchingTimes_2 (free)
-mode_t[nMulti] = mode_tf;   # tf
+mode_t = pySOCP.iVector(nMulti+1, pySOCP.model.CONTINUOUS);      # define time modes on the timeline
+mode_t[0] = pySOCP.model.FIXED;  # ti (fixed)
+mode_t[2] = pySOCP.model.FREE;   # SwitchingTimes_1 (free)
+mode_t[4] = pySOCP.model.FREE;   # SwitchingTimes_2 (free)
+mode_t[nMulti] = mode_tf;        # tf
 mode_X = pySOCP.iMatrix(nMulti+1);                      # define state modes on the timeline
-mode_X[0] = pySOCP.iVector(goddardDim,0);               # Xi is fixed
+mode_X[0] = pySOCP.iVector(goddardDim,pySOCP.model.FIXED);               # Xi is fixed
 mode_X[nMulti] = mode_Xf;                               
 for i in range(1, nMulti-1):
-    mode_X[i] = pySOCP.iVector(goddardDim,2);
+    mode_X[i] = pySOCP.iVector(goddardDim,pySOCP.model.CONTINUOUS);
 my_shooting.SetMode(mode_t, mode_X);   # setting mode to the solver
 
 # init

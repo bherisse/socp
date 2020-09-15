@@ -7,8 +7,6 @@
 #include <fstream>
 #include <map>
 
-#include "commonType.hpp"
-
 #include "odeTools.hpp"
 
 #ifndef _MODEL_H_
@@ -29,6 +27,15 @@ public:
 	* vector for model control
 	*/
 	typedef odeTools::odeVector mcontrol;
+
+	/**
+	* Enumerate optimization mode for times and components of the state vector
+	*/
+	enum {
+		FIXED,		///< fixed time or state 
+		FREE,		///< free time or state (constraints and transversality conditions are defined in user model functions)
+		CONTINUOUS	///< use standard continuity conditions when doing multiple shooting (for interior points only)
+	};
 
 	/**
 	* Constructor
@@ -80,7 +87,7 @@ public:
 	virtual void FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const{	
 		// Compute the function to solve
 		for (int j=0;j<dim;j++){
-			if (mode_X[j]==1){
+			if (mode_X[j]==FREE){
 				// continuity => X(k+n) = 0 (transversality condition)
 				fvec[j] = X_tf[j+dim];
 			}else{
@@ -101,7 +108,7 @@ public:
 	virtual void FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const{	
 		// Compute the function to solve
 		for (int j=0;j<dim;j++){
-			if (mode_X[j]==1){
+			if (mode_X[j]==FREE){
 				// continuity => X(k+n) = 0 (transversality condition)
 				fvec[j] = X_tf[j+dim];
 			}else{
@@ -123,7 +130,7 @@ public:
 	virtual void InitialFunction(real const& t0, mstate const& X_t0, mstate const& X0, std::vector<int> const& mode_X, std::vector<real> & fvec) const{	
 		// Compute the function to solve
 		for (int j=0;j<dim;j++){
-			if (mode_X[j]==1){
+			if (mode_X[j]==FREE){
 				// continuity => X(k+n) = 0 (transversality condition)
 				fvec[j] = X_t0[j+dim];
 			}else{
@@ -144,7 +151,7 @@ public:
 	virtual void InitialHFunction(real const& t0, mstate const& X_t0, mstate const& X0, std::vector<int> const& mode_X, std::vector<real> & fvec) const{	
 		// Compute the function to solve
 		for (int j=0;j<dim;j++){
-			if (mode_X[j]==1){
+			if (mode_X[j]==FREE){
 				// continuity => X(k+n) = 0 (transversality condition)
 				fvec[j] = X_t0[j+dim];
 			}else{

@@ -39,12 +39,12 @@ int main(int argc, char** argv) {
 	std::vector<model::mstate> vX(nMulti+1);						// state and costate at times vt
 
 	// set mode for final time and state
-	int mode_tf = 1;												// 0 for fixed time, 1 for free optimized time
-	std::vector<int> mode_Xf(goddardDim,0);							// 0 for fixed state, 1 for free optimized state
-	mode_Xf[3] = 1;	// vxf is free
-	mode_Xf[4] = 1;	// vyf is free
-	mode_Xf[5] = 1;	// vzf is free
-	mode_Xf[6] = 1;	// mf is free
+	int mode_tf = model::FREE;									// 0 for fixed time, 1 for free optimized time
+	std::vector<int> mode_Xf(goddardDim, model::FIXED);			// 0 for fixed state, 1 for free optimized state
+	mode_Xf[3] = model::FREE;	// vxf is free
+	mode_Xf[4] = model::FREE;	// vyf is free
+	mode_Xf[5] = model::FREE;	// vzf is free
+	mode_Xf[6] = model::FREE;	// mf is free
 	my_shooting.SetMode(mode_tf, mode_Xf);							// setting mode to the solver						
 
 	// set initial guess for the shooting (trivial guess)
@@ -128,16 +128,16 @@ int main(int argc, char** argv) {
 	}
 
 	// update mode (define the new structure of the trajectory)
-	std::vector<int> mode_t(nMulti+1,2);						// define time modes on the timeline		
-	mode_t[0] = 0;	// ti (fixed)
-	mode_t[2] = 1;	// SwitchingTimes_1 (free)
-	mode_t[4] = 1;	// SwitchingTimes_2 (free)
-	mode_t[nMulti] = mode_tf;	// tf
+	std::vector<int> mode_t(nMulti+1, model::CONTINUOUS);	// define time modes on the timeline		
+	mode_t[0] = model::FIXED;	// ti (fixed)
+	mode_t[2] = model::FREE;		// SwitchingTimes_1 (free)
+	mode_t[4] = model::FREE;		// SwitchingTimes_2 (free)
+	mode_t[nMulti] = mode_tf;		// same mode for tf
 	std::vector< std::vector<int> > mode_X(nMulti+1);
-	mode_X[0] = std::vector<int>(goddardDim,0); 				// define state modes on the timeline
+	mode_X[0] = std::vector<int>(goddardDim, model::FIXED);	// define state modes on the timeline
 	mode_X[nMulti] = mode_Xf;									// Xi is fixed
 	for (int i=1; i<nMulti; i++){
-		mode_X[i] = std::vector<int>(goddardDim, 2);
+		mode_X[i] = std::vector<int>(goddardDim, model::CONTINUOUS);
 	}
 	my_shooting.SetMode(mode_t, mode_X);						// setting mode to the solver
 	

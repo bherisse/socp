@@ -4,6 +4,7 @@
  *  Created on: June 30, 2016
  *      Author: Bruno HERISSE & Riccardo BONALLI (ONERA/DTIS)
  */
+#include <unordered_map>
 
 #include "commonType.hpp"
 
@@ -22,8 +23,8 @@ public:
 	/**
 	* Constructor
 	* @param model a reference to the model used for shooting
-	* @param numMulti a number for multiple shooting (from 1 shooting to infinity)
-	* @param numThread a number for multithreading (from 1 thread to infinity)
+	* @param numMulti an integer for multiple shooting (from 1 shooting to infinity)
+	* @param numThread an integer for multithreading (from 1 thread to infinity)
 	*/
 	shooting(model & model, int numMulti = int(1), int numThread = int(1));
 
@@ -33,7 +34,28 @@ public:
 	~shooting();
 
 	/**
-	* Init Shooting
+	* Resize the OCP (optional, to be called before SetMode() function)
+	* @param numMulti an integer for multiple shooting (from 1 shooting to infinity)
+	* @param numThread an integer for multithreading (from 1 thread to infinity)
+	*/
+	void Resize(int numMulti, int numThread) const;
+
+	/**
+	* Set mode for fixed/free final time and final state, default values for other components (to be called before InitShooting() function)
+	* @param mode_tf mode for final time : 0 for fixed final time, 1 for free final time
+	* @param mode_Xf mode for final state : 0 for fixed final state, 1 for free final state
+	*/
+	void SetMode(int const& mode_tf, std::vector<int> const& mode_Xf) const;
+
+	/**
+	* Set mode for fixed/free time and state (to be called before InitShooting() function)
+	* @param mode_t mode for final times : 0 for fixed time, 1 for free time, 2 for continuity
+	* @param mode_X vector of mode for states : 0 for fixed state, 1 for free state, 2 for continuity
+	*/
+	void SetMode(std::vector<int> const& mode_t, std::vector< std::vector<int> > const& mode_X) const;
+
+	/**
+	* Init Shooting (to be called before SetDesiredState() function)
 	* @param ti initial time
 	* @param Xi initial state
 	* @param tf final time
@@ -42,14 +64,14 @@ public:
 	void InitShooting(real const& ti, model::mstate const& Xi, real const& tf, model::mstate const& Xf) const;
 
 	/**
-	* Init Shooting using multiple shooting
+	* Init Shooting using multiple shooting (to be called before SetDesiredState() function)
 	* @param vt vector of times
 	* @param vX vector of states
 	*/
 	void InitShooting(std::vector<real> const& vt, std::vector<model::mstate> const& vX) const;
 
 	/**
-	* Set desired state
+	* Set desired state (optional, to be called before SolveOCP() function)
 	* @param ti initial time
 	* @param Xi initial state
 	* @param tf final time
@@ -58,7 +80,7 @@ public:
 	void SetDesiredState(real const& ti, model::mstate const& Xi, real const& tf, model::mstate const& Xf) const;
 
 	/**
-	* Set desired state using multiple shooting
+	* Set desired state using multiple shooting (optional, to be called before SolveOCP() function)
 	* @param vt vector of times
 	* @param vX vector of states
 	*/
@@ -67,7 +89,7 @@ public:
 	/**
 	* Solve OCP with discrete time and state continuation
 	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
-	* @return result from the solver : 1 if success
+	* @return result from the solver: 1 if success
 	*/
 	int SolveOCP(real const& continuationStep) const;
 
@@ -75,9 +97,9 @@ public:
 	* Solve OCP with discrete time and state continuation and timeout in ms
 	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
 	* @param timeoutMS timeout in ms
-	* @return result from the solver : 1 if success
+	* @return result from the solver: 1 if success, -1 if timeout exceeded
 	*/
-	int SolveOCP(real const& continuationStep, double const timeoutMS);
+	int SolveOCP(real const& continuationStep, double const& timeoutMS) const;
 
 	/**
 	* Solve OCP with discrete continuation on a real parameter from Rdata to Rgoal
@@ -95,8 +117,14 @@ public:
 	* @param Rgoal real number to achieve
 	* @return result from the solver : 1 if success (Rgoal is achieved)
 	*/
-	int SolveOCP(real const& continuationStep, std::string Rdata, real const& Rgoal) const {
-		return SolveOCP(continuationStep, myModel.parameters[Rdata], Rgoal);
+	int SolveOCP(real const& continuationStep, std::string const& Rdata, real const& Rgoal) const {
+		if (myModel.parameters.find(Rdata) != myModel.parameters.end()) {
+			return SolveOCP(continuationStep, myModel.parameters[Rdata], Rgoal);
+		}
+		else {
+			std::cout << std::endl << std::endl << "Data " << Rdata << " does not exist!" << std::endl << std::endl;
+		}
+		
 	};
 
 	/**
@@ -132,54 +160,33 @@ public:
 	void Move(real const& tf, model::mstate & Xf) const;
 
 	/**
-	* Set mode for fixed/free final time and final state
-	* @param mode_tf mode for final time : 0 for fixed final time, 1 for free final time
-	* @param mode_Xf mode for final state : 0 for fixed final state, 1 for free final state
-	*/
-	void SetMode(int const& mode_tf, std::vector<int> const& mode_Xf) const;
-
-	/**
-	* Set mode for fixed/free time and state using multiple shooting
-	* @param mode_t mode for final times : 0 for fixed time, 1 for free time, 2 for dependent time
-	* @param mode_X vector of mode for states : 0 for fixed state, 1 for free state, 2 for continuity state
-	*/
-	void SetMode(std::vector<int> const& mode_t, std::vector< std::vector<int> > const& mode_X) const;
-
-	/**
-	* Resize the OCP 
-	* @param numMulti a number for multiple shooting (from 1 shooting to infinity)
-	* @param numThread a number for multithreading (from 1 thread to infinity)
-	*/
-	void Resize(int numMulti, int numThread) const;
-
-	/**
 	* Set relative tolerance for the solver
 	* @param xtol realtive tolerance
 	*/
-	void SetPrecision(real const& xtol);
+	void SetPrecision(real const& xtol) const;
 
 	/**
 	* Set minimum continuation step
 	* @param step minimum continuation step
 	*/
-	void SetContinuationMinStep(real const& step);
+	void SetContinuationMinStep(real const& step) const;
 
 	/**
-	* Get current kth guess parameter
+	* Get current kth parameter
 	* @param k the parameter number to be returned
-	* @return the kth guess parameter
+	* @return the kth parameter
 	*/
 	real GetParameters(int const& k) const;
 
 	/**
-	* Get current guess parameters
-	* @return a pointer to the array of guess parameters 
+	* Get current parameters
+	* @return a pointer to the array of parameters 
 	*/
 	real *GetParameters() const;
 
 	/**
-	* Get current guess parameters
-	* @param paramVector a vector of guess parameters
+	* Get current parameters
+	* @param paramVector a vector of parameters
 	*/
 	void GetParameters(std::vector<real> & paramVector) const;
 
@@ -205,7 +212,7 @@ public:
 	* Get Model
 	* @return the model
 	*/
-	model & GetModel();
+	model & GetModel() const;
 
 private:
 
@@ -215,26 +222,50 @@ private:
 	model & myModel;
 
 	/**
-	* Compute Shooting without continuation
+	* Shooting data structure
+	*/
+	struct data_struct;
+
+	/**
+	* Shooting data pointer
+	*/
+	data_struct *data;
+
+	/**
+	* Static function for solving OCP with timeout
+	* @param arg a pointer to the arguments passed to the thread
+	*/
+	static void TimeoutOCPFunction(void *arg);
+
+	/**
+	* Solve Shooting without continuation
 	* @return result from the solver : 1 if success
 	*/
 	int SolveShooting() const;
 
 	/**
-	* Compute Shooting with discrete time and state continuation
+	* Solve Shooting with discrete time and state continuation
 	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
 	* @return result from the solver : 1 if success
 	*/
 	int SolveShootingContinuation(real const& continuationStep) const;
 
 	/**
-	* Compute Shooting with discrete continuation on parameter Rdata to Rgoal
+	* Solve Shooting with discrete continuation on parameter Rdata to Rgoal
 	* @param continuationStep step of continuation as a ratio : 0 for no continuation, 0 < continuationStep <= 1 for continuation
 	* @param Rdata real data for continuation
 	* @param Rgoal real number to achieve
 	* @return result from the solver : 1 if success (Rgoal is achieved)
 	*/
 	int SolveShootingContinuation(real const& continuationStep, real & Rdata, real const& Rgoal) const; 
+
+	/**
+	* Solve Function
+	* @param numParam number of parameters
+	* @param param a vector to the parameters
+	* @return result from the solver : 1 if success
+	*/
+	int SolveShootingFunction(int const & numParam, std::vector<real> & param) const;
 
 	/**
 	* Static function for the solver
@@ -244,8 +275,8 @@ private:
 	* @param fvec a pointer to the function values
 	* @param iflag an optional flag
 	*/
-	static int StaticShootingFunction(void *userdata, int n, const real *param, real *fvec, int iflag);		// for cminpack
-
+	static int StaticShootingFunction(void *userdata, int n, const real *param, real *fvec, int iflag);	
+	
 	/**
 	* Function to be solved
 	* @param n the number of parameters
@@ -262,14 +293,14 @@ private:
 	* @param fvec a pointer to the function values
 	* @param iflag a pointer to an optional flag
 	*/
-	void ShootingFunctionPar(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const;
-
+	void ShootingFunctionParallel(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const;
+	
 	/**
-	* Static function for the thread
+	* Static function for shooting with multithreading
 	* @param arg a pointer to the arguments passed to the thread
 	*/
-	static void StaticShootingPar(void *arg);
-
+	static void StaticShootingParallelFunction(void *arg);
+	
 	/**
 	* Compute a part of the shooting function on a single thread
 	* @param n the number of parameters
@@ -279,26 +310,8 @@ private:
 	* @param threadNum thread number
 	* @param timeLine time vector considered by the thread
 	*/
-	void ShootingFunctionParThread(int n, real *param, real *fvec, int threadNum, std::vector<real> const& timeLine) const;
+	void ShootingParallelFunctionThread(int n, real *param, real *fvec, int threadNum, std::vector<real> const& timeLine) const;
 	
-	/**
-	* Shooting data structure
-	*/
-	struct data_struct;
-
-	/**
-	* Shooting data pointer
-	*/
-	data_struct *data;
-
-	/**
-	* Solve Function
-	* @param numParam number of parameters
-	* @param param a vector to the parameters
-	* @return result from the solver : 1 if success
-	*/
-	int SolveShootingFunction(int const & numParam, std::vector<real> & param) const;
-
 	/**
 	* Update solution
 	*/
@@ -321,14 +334,6 @@ private:
 	* @param timeLine a vector to the timeline
 	*/
 	void ComputeTimeLine(std::vector<real> const& param, std::vector<real> & timeLine) const;
-
-	/**
-	* Static function for solving OCP with timeout
-	* @param arg a pointer to the arguments passed to the thread
-	*/
-	static void StaticSolveOCP(void *arg);
-
-	int stopFlag;
 
 };
 

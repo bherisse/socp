@@ -24,6 +24,7 @@
 #include "../src/socp/shooting.hpp"
 #include "../src/models/covid19/covid19.hpp"
 
+
 // main function
 int main(int argc, char** argv) {
 
@@ -38,8 +39,8 @@ int main(int argc, char** argv) {
 	int covid19Dim = my_covid19.GetDim();							// GetDim return the dimension of the dynamic model
 
 	// parameters of SEIR model for covid-19
-	my_covid19.GetParameterData().R0 = 4;
-	my_covid19.GetParameterData().Tinf = 10;
+	my_covid19.GetParameterData().R0 = 3.4;
+	my_covid19.GetParameterData().Tinf = 14;
 	my_covid19.GetParameterData().Tinc = 5;
 
 	// new shooting object
@@ -63,10 +64,10 @@ int main(int argc, char** argv) {
 	// set initial guess for the shooting (trivial guess)
 	real ti = 0;					// initial time (corresponding to May 11)
 	model::mstate Xi(2* covid19Dim);	// with the adjoint vector, the full initial state dimension is twice this dimension
-	Xi[0] =		0.9;				// S (estimate on May 11)
+	Xi[0] =		0.93;				// S (estimate on May 11)
 	Xi[1] =		0.003;				// E (estimate on May 11)
 	Xi[2] =		0.01;				// I (estimate on May 11)
-	Xi[3] =		0.087;				// R (estimate on May 11)
+	Xi[3] =		0.057;				// R (estimate on May 11)
 	Xi[4] =		-0.001;				// pS (parameter guess for optimization)
 	Xi[5] =		0.001;				// pE (parameter guess for optimization)
 	Xi[6] =		0*0.01;				// pI (parameter guess for optimization)
@@ -82,7 +83,7 @@ int main(int argc, char** argv) {
 	/********************* solve OCP ************************/
 	/********************************************************/
 	std::cout << "Solve the OCP: " << std::endl;
-	
+
 	// to return error flag
 	int info = 1;
 
@@ -92,19 +93,33 @@ int main(int argc, char** argv) {
 		info = my_shooting.SolveOCP(0.0);			// solve OCP without continuation solve OCP without continuation (continuationstep = 0)
 	std::cout << "OK = " << info << std::endl;
 
-	// solve OCP to achieve 80% of removed population after 30 days
-	Xf[3] = 0.8;
+	// solve OCP to achieve 70% of removed population after 30 days
+	Xf[3] = 0.7;
 	std::cout << "	Solve OCP to achieve 80% of removed population after 30 days: ";
 	my_shooting.SetDesiredState(ti, Xi, tf, Xf);
 	info = my_shooting.SolveOCP(0.1);
 	std::cout << "OK = " << info << std::endl;
 
-	// solve OCP to achieve 80% of removed population after 1 year
+	// solve OCP to achieve 70% of removed population after 1 year
 	tf = 365;
 	std::cout << "	Solve OCP to achieve 80% of removed population after 1 year: ";
 	my_shooting.SetDesiredState(ti, Xi, tf, Xf);
 	info = my_shooting.SolveOCP(0.01);
 	std::cout << "OK = " << info << std::endl;
+
+	//// solve OCP to achieve 70% of removed population after 1 year
+	//std::cout << "	Solve OCP to constrain I: ";
+	//info = my_shooting.SolveOCP(0.01,my_covid19.GetParameterData().Imax,0.05);
+	//info = my_shooting.SolveOCP(0.01, my_covid19.GetParameterData().muI, 10);
+	//info = my_shooting.SolveOCP(0.01, my_covid19.GetParameterData().Imax, 0.00);
+	//info = my_shooting.SolveOCP(0.01, my_covid19.GetParameterData().muI, 1000);
+	//std::cout << "OK = " << info << std::endl;
+
+	//// solve OCP to saturate control
+	//std::cout << "	Solve OCP to constrain I: ";
+	//info = my_shooting.SolveOCP(0.01, my_covid19.GetParameterData().umin, 0);
+	//info = my_shooting.SolveOCP(0.01, my_covid19.GetParameterData().umax, 1);
+	//std::cout << "OK = " << info << std::endl;
 
 	/********************************************************/
 	/****************** trace solution **********************/

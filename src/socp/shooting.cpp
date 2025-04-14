@@ -47,7 +47,8 @@ struct shooting::data_struct{
 	real factor; 							///< initial step bound for the solver
 	int nprint; 							///< for the solver
 	int info; 								///< returned info (1 if OK) by the solver
-	int nfev; 								///< iteration number of the solver
+	int nfev; 								///< number of calls to fcn with iflag = 1
+	int njev; 								///< number of calls to fcn with iflag = 2
 	int stopFlag;							///< flag to stop the solver
 
 };
@@ -93,13 +94,14 @@ shooting::shooting(model & model, int numMulti, int numThread): myModel(model){
 	// Parameters used by the hybrd algorithm
 	data->maxfev = 10000; 									// max call fcn
 	data->xtol = 1e-8;										// relative tolerance
-	myModel.SetODEIntPrecision(data->xtol);			// Set default precision for model integration
+	myModel.SetODEIntPrecision(data->xtol);					// Set default precision for model integration
 	data->epsfcn = 1e-15; 									// for forward-difference approximation
 	data->scalingMode = 1; 									// scaling (1: by the fcn, 2: by xscal)
 	data->factor = 1; 										// initial step bound
 	data->nprint = 0; 										// for iflag
 	data->info = 0; 										// returned info (1 if OK)
-	data->nfev = 0; 										// iteration number
+	data->nfev = 0; 										// number of calls to function
+	data->njev = 0; 										// number of calls to jacobian
 	data->stopFlag = 0;
 	
 	// For multithreading
@@ -360,25 +362,25 @@ int shooting::SolveOCP(real const& continuationStep, real & Rdata, real const& R
 }
 
 // Function to move the model from ti to tf
-model::mstate shooting::Move(real const& ti, model::mstate const& Xi, real const& tf) const {
+model::mstate shooting::Move(real const& ti, model::mstate const& Xi, real const& tf, int isJac) const {
 
 	// Compute trajectory from t0 to tf
-	model::mstate X_tf = myModel.ComputeTraj(ti, Xi, tf, 0);
+	model::mstate X_tf = myModel.ComputeTraj(ti, Xi, tf, 0, isJac);
 
 	return X_tf;
 
 }
 
 // Function to move the model from ti to tf
-void shooting::Move(real const& ti, model::mstate const& Xi, real const& tf, model::mstate & Xf) const {
+void shooting::Move(real const& ti, model::mstate const& Xi, real const& tf, model::mstate & Xf, int isJac) const {
 
 	// Compute trajectory from t0 to tf
-	Xf = myModel.ComputeTraj(ti, Xi, tf, 0);
+	Xf = myModel.ComputeTraj(ti, Xi, tf, 0, isJac);
 
 }
 
 // Function to move the model to tf
-model::mstate shooting::Move(real const& tf) const {
+model::mstate shooting::Move(real const& tf, int isJac) const {
 	int numParam = data->numParam;
 
 	// Initial model state
@@ -428,14 +430,14 @@ model::mstate shooting::Move(real const& tf) const {
 		for (int i = 0; i<2 * data->dim; i++)	X1[i] = data->tab_param[index + i];
 	}
 
-	model::mstate X_tf = Move(t1, X1, t_f);
+	model::mstate X_tf = Move(t1, X1, t_f, isJac);
 
 	return X_tf;
 
 }
 
 // Function to move the model to tf
-void shooting::Move(real const& tf, model::mstate & Xf) const {
+void shooting::Move(real const& tf, model::mstate & Xf, int isJac) const {
 
 	Xf = Move(tf);
 
@@ -486,8 +488,8 @@ void shooting::GetSolution(std::vector<real>& vt, std::vector<model::mstate>& vX
 }
 
 // Get the number of calls to the function to be solved
-double shooting::GetCallNumber() const {
-	return data->nfev;
+std::vector<int> shooting::GetCallNumber() const {
+	return std::vector<int>({ data->nfev, data->njev });
 }
 
 // Trace
@@ -532,7 +534,7 @@ void shooting::Trace() const
 		t2 = timeLine[i + 1];
 		index = 2 * (i + 1)*data->dim;
 		// Compute trajectory from t1 to t2
-		myModel.ComputeTraj(t1, X1, t2, 1);
+		myModel.ComputeTraj(t1, X1, t2, 1, 0);
 		if (i<(data->numMulti - 1)) {
 			// update data
 			for (int j = 0; j<2 * data->dim; j++)	X1[j] = data->tab_param[index + j];
@@ -796,47 +798,74 @@ int shooting::SolveShootingFunction(int const & numParam, std::vector<real> & pa
 	std::vector<real> wa3(numParam);
 	std::vector<real> wa4(numParam);
 
-	// root finding of the function "StaticShootingFunction"
-	data->info = __cminpack_func__(hybrd)(StaticShootingFunction,
-		(void*) this,
-		numParam,
-		param.data(),
-		fvec.data(),
-		data->xtol,
-		data->maxfev,
-		ml,
-		mu,
-		data->epsfcn,
-		xscal.data(),
-		data->scalingMode,
-		data->factor,
-		data->nprint,
-		&data->nfev,
-		fjac.data(),
-		ldfjac,
-		r.data(),
-		lr,
-		qtf.data(),
-		wa1.data(),
-		wa2.data(),
-		wa3.data(),
-		wa4.data());
+	if (myModel.modelOrder == 0) {
+		// root finding of the function "StaticShootingFunction"
+		data->info = __cminpack_func__(hybrd)(StaticShootingFunction,
+			(void*)this,
+			numParam,
+			param.data(),
+			fvec.data(),
+			data->xtol,
+			data->maxfev,
+			ml,
+			mu,
+			data->epsfcn,
+			xscal.data(),
+			data->scalingMode,
+			data->factor,
+			data->nprint,
+			&data->nfev,
+			fjac.data(),
+			ldfjac,
+			r.data(),
+			lr,
+			qtf.data(),
+			wa1.data(),
+			wa2.data(),
+			wa3.data(),
+			wa4.data());
+	}
+	else {
+		// root finding of the function "StaticShootingFunction"
+		data->info = __cminpack_func__(hybrj)(StaticShootingFunctionJacobian,
+			(void*)this,
+			numParam,
+			param.data(),
+			fvec.data(),
+			fjac.data(),
+			ldfjac,
+			data->xtol,
+			data->maxfev,
+			xscal.data(),
+			data->scalingMode,
+			data->factor,
+			data->nprint,
+			&data->nfev,
+			&data->njev,
+			r.data(),
+			lr,
+			qtf.data(),
+			wa1.data(),
+			wa2.data(),
+			wa3.data(),
+			wa4.data());
+	}
 
 	return data->info;
 
 }
 
 // Static function for the solver
-int shooting::StaticShootingFunction(void *userData, int n, const real *param, real *fvec, int iflag) {		// for cminpack
+int shooting::StaticShootingFunction(void *userData, int n, const real *param, real *fvec, int iflag) {		// for cminpack (hybrd)
 	shooting* This = (shooting*)userData;
 	std::vector<real> param_vec(n), fvec_vec(n);
 	param_vec.assign(param, param + n);
 
 	if (This->data->numThread <= 1) {
-		This->ShootingFunction(n, param_vec, fvec_vec, iflag);
+		This->ShootingFunction(n, param_vec, fvec_vec);
 	}
 	else {
-		This->ShootingFunctionParallel(n, param_vec, fvec_vec, iflag);
+		This->ShootingFunctionParallel(n, param_vec, fvec_vec);
 	}
 
 	for (int j = 0; j<n; j++) fvec[j] = fvec_vec[j];
@@ -844,14 +873,55 @@ int shooting::StaticShootingFunction(void *userData, int n, const real *param, r
 	return This->data->stopFlag;
 };
 
+// Static function for the solver
+int shooting::StaticShootingFunctionJacobian(void *userData, int n, const real *param, real *fvec, real *fjac, int ldfjac, int iflag) {		// for cminpack (hybrj)
+	shooting* This = (shooting*)userData;
+	std::vector<real> param_vec(n), fvec_vec(n), fjac_vec(n*n);
+	param_vec.assign(param, param + n);
+
+	if (This->data->numThread <= 1) {
+		if (iflag == 1) {
+			This->ShootingFunction(n, param_vec, fvec_vec);
+			for (int j = 0; j < n; j++) fvec[j] = fvec_vec[j];
+		}
+		else {
+			This->ShootingFunctionJacobian(n, param_vec, fjac_vec);
+			for (int k = 0; k < n; k++) {
+				for (int j = 0; j < n; j++) {
+					fjac[k + n * j] = fjac_vec[n * k + j];
+				}
+			}
+		}
+		
+	}
+	else {
+		if (iflag == 1) {
+			This->ShootingFunctionParallel(n, param_vec, fvec_vec);
+			for (int j = 0; j < n; j++) fvec[j] = fvec_vec[j];
+		}
+		else {
+			This->ShootingFunctionJacobianParallel(n, param_vec, fjac_vec);
+			for (int k = 0; k < n; k++) {
+				for (int j = 0; j < n; j++) {
+					fjac[k + n * j] = fjac_vec[n * k + j];
+				}
+			}
+				
+		}
+		
+	}	
+
+	return This->data->stopFlag;
+};
+
 // Function for root finding
-void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const
+void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vector<real> & fvec) const
 {
 	int numParam = data->numParam;
 
 	// Initial model state
 	model::mstate X_t0 = data->X[0];
-	for (int i = 0; i<2 * data->dim; i++)	X_t0[i] = param[i];
+	for (int i = 0; i < 2 * data->dim; i++)	X_t0[i] = param[i];
 
 	// Get the timeline
 	std::vector<real> timeLine(data->numMulti + 1);
@@ -865,40 +935,40 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 	int index;
 	int nbrParam = 2 * data->dim*data->numMulti;
 	model::mstate funcMS(2 * data->dim);
-	for (int i = 0; i<data->numMulti; i++) {
+	for (int i = 0; i < data->numMulti; i++) {
 		// current time
 		t1 = timeLine[i];
 		t2 = timeLine[i + 1];
 		// Compute trajectory from t1 to t2
-		X_tf = Move(t1, X1, t2);
+		X_tf = Move(t1, X1, t2, 0);
 		index = 2 * (i + 1)*data->dim;
 		if (i == 0) {
 			// Compute the function to be solved
 			std::vector<real> func;
 			if (data->mode_t[0] == model::FIXED) {
 				func = std::vector<real>(data->dim);
-				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
-				for (int k = 0; k<data->dim; k++) fvec[k] = func[k];
+				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 0);
+				for (int k = 0; k < data->dim; k++) fvec[k] = func[k];
 			}
 			else {
 				func = std::vector<real>(data->dim + 1);
-				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
-				for (int k = 0; k<data->dim; k++) fvec[k] = func[k];
+				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 0);
+				for (int k = 0; k < data->dim; k++) fvec[k] = func[k];
 				fvec[2 * data->dim*data->numMulti] = func[data->dim];
 				nbrParam += 1;
 			}
 		}
-		if (i<(data->numMulti - 1)) {
-			for (int k = 0; k<2 * data->dim; k++)	Xp[k] = param[index + k];
+		if (i < (data->numMulti - 1)) {
+			for (int k = 0; k < 2 * data->dim; k++)	Xp[k] = param[index + k];
 			// Switching function for free intermediate times
 			if (data->mode_t[i + 1] == model::FREE) {
-				real Si = myModel.SwitchingTimesFunction(t2, X_tf);
-				fvec[nbrParam] = Si;
+				model::mstate switchFunc = myModel.SwitchingTimesFunction(t2, X_tf, Xp, 0);
+				fvec[nbrParam] = switchFunc[0];
 				nbrParam += 1;
 			}
 			// continuity function for multiple shooting
-			MultipleShootingFunction(t2, X_tf, Xp, data->X[i + 1], data->mode_X[i + 1], funcMS);
-			for (int k = 0; k<2 * data->dim; k++) fvec[index + k] = funcMS[k];
+			MultipleShootingFunction(t2, X_tf, Xp, data->X[i + 1], data->mode_X[i + 1], data->mode_t[i + 1], funcMS, 0);
+			for (int k = 0; k < 2 * data->dim; k++) fvec[index + k] = funcMS[k];
 			X1 = Xp;
 		}
 		if (i == (data->numMulti - 1)) {
@@ -906,14 +976,150 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 			std::vector<real> func;
 			if (data->mode_t[data->numMulti] == model::FIXED) {
 				func = std::vector<real>(data->dim);
-				myModel.FinalFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
-				for (int k = 0; k<data->dim; k++) fvec[k + data->dim] = func[k];
+				myModel.FinalFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func, 0);
+				for (int k = 0; k < data->dim; k++) fvec[k + data->dim] = func[k];
 			}
 			else {
 				func = std::vector<real>(data->dim + 1);
-				myModel.FinalHFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func);
-				for (int k = 0; k<data->dim; k++) fvec[k + data->dim] = func[k];
+				myModel.FinalHFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func, 0);
+				for (int k = 0; k < data->dim; k++) fvec[k + data->dim] = func[k];
 				fvec[nbrParam] = func[data->dim];
+				nbrParam += 1;
+				assert(nbrParam == data->numParam);
+			}
+		}
+
+	}
+}
+
+// Function for root finding
+void shooting::ShootingFunctionJacobian(int n, std::vector<real> const& param, std::vector<real> & fjac) const
+{
+	int numParam = data->numParam;
+
+	// Initial model state
+	model::mstate State_t0 = data->X[0];
+	for (int i = 0; i < 2 * data->dim; i++)	State_t0[i] = param[i];
+	model::mstate X_t0((2 * data->dim + 1) * (2 * data->dim), 0);
+	for (int i = 0; i < 2 * data->dim; i++)	X_t0[i] = State_t0[i];						
+	for (int i = 0; i < 2 * data->dim; i++)	X_t0[2 * data->dim * (i + 1) + i] = 1;		// Identity
+
+	// Get the timeline
+	std::vector<real> timeLine(data->numMulti + 1);
+	ComputeTimeLine(param, timeLine);
+
+	// Process multiple shooting
+	model::mstate X1 = X_t0;		// current state
+	model::mstate X_tf = X_t0;		// next state to be computed
+	model::mstate Xp = X1;
+	real t1, t2;
+	int index;
+	int nbrParam = 2 * data->dim*data->numMulti;
+	model::mstate funcMS(2 * data->dim);
+	for (int i = 0; i < data->numMulti; i++) {
+		// current time
+		t1 = timeLine[i];
+		t2 = timeLine[i + 1];
+
+		// Compute trajectory from t1 to t2
+		X_tf = Move(t1, X1, t2, 1);
+
+		index = 2 * (i + 1)*data->dim;
+		if (i == 0) {
+			// Compute the function to be solved
+			std::vector<real> func;
+			if (data->mode_t[0] == model::FIXED) {
+				func = std::vector<real>((data->dim) * (2 * data->dim), 0);
+				myModel.InitialFunction(timeLine[0], X1, X_t0, data->mode_X[0], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int j = 0; j < 2 * data->dim; j++) {
+						fjac[numParam * k + j] = func[2 * data->dim * k + j];
+					}
+				}
+					
+			}
+			else {
+				func = std::vector<real>((data->dim + 1) * (2 * data->dim + 1), 0);
+				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int j = 0; j < 2 * data->dim; j++) {
+						fjac[numParam * k + j] = func[(2 * data->dim + 1) * k + j];
+					}
+				}
+				for (int k = 0; k < data->dim; k++) {
+					fjac[numParam * k + nbrParam] = func[(2 * data->dim + 1) * k + 2 * data->dim];
+				}
+				for (int j = 0; j < 2 * data->dim; j++) {
+					fjac[numParam * nbrParam + j] = func[(2 * data->dim + 1) * data->dim + j];
+				}
+				fjac[numParam * nbrParam + nbrParam] = func[(2 * data->dim + 1) * data->dim + 2 * data->dim];
+				nbrParam += 1;
+			}
+		}
+		if (i < (data->numMulti - 1)) {
+			model::mstate State_p(2 * data->dim, 0);
+			for (int k = 0; k < 2 * data->dim; k++)	State_p[k] = param[index + k];
+			Xp = model::mstate((2 * data->dim + 1) * 2 * data->dim, 0);
+			for (int i = 0; i < 2 * data->dim; i++)	Xp[i] = State_p[i];				
+			for (int i = 0; i < 2 * data->dim; i++)	Xp[2 * data->dim * (i + 1) + i] = 1;		// Identity
+			// Switching function for free intermediate times
+			if (data->mode_t[i + 1] == model::FREE) {
+				funcMS = model::mstate(2 * data->dim * (4 * data->dim + 1), 0);
+				MultipleShootingFunction(t2, X_tf, Xp, data->X[i + 1], data->mode_X[i + 1], data->mode_t[i + 1], funcMS, 1);
+				for (int k = 0; k < 2 * data->dim; k++) {
+					for (int j = 0; j < 4 * data->dim + 1; j++) {
+						fjac[numParam * (index + k) + (index - 2 * data->dim + j)] = funcMS[(4 * data->dim + 1) * k + j];
+					}
+					fjac[numParam * (index + k) + nbrParam] = funcMS[(4 * data->dim + 1) * k + 4 * data->dim];
+				}				
+
+				model::mstate switchFunc = myModel.SwitchingTimesFunction(t2, X_tf, Xp, 1);
+				assert(switchFunc.size() == 4 * data->dim + 1);
+				for (int j = 0; j < 4 * data->dim; j++) {
+					fjac[numParam * nbrParam + (index - 2 * data->dim + j)] = switchFunc[j];
+				}
+				fjac[numParam * nbrParam + nbrParam] = switchFunc[4 * data->dim];
+				nbrParam += 1;
+			}
+			else {
+				funcMS = model::mstate(2 * data->dim * (4 * data->dim + 1), 0);
+				MultipleShootingFunction(t2, X_tf, Xp, data->X[i + 1], data->mode_X[i + 1], data->mode_t[i + 1], funcMS, 1);
+				for (int k = 0; k < 2 * data->dim; k++) {
+					for (int j = 0; j < 4 * data->dim; j++) {
+						fjac[numParam * (index + k) + (index - 2 * data->dim + j)] = funcMS[(4 * data->dim + 1) * k + j];
+					}
+				}
+			}
+			
+			X1 = Xp;
+		}
+		if (i == (data->numMulti - 1)) {
+			// Compute the function to be solved
+			std::vector<real> func;
+			if (data->mode_t[data->numMulti] == model::FIXED) {
+				func = std::vector<real>((data->dim) * (2 * data->dim), 0);
+				myModel.FinalFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int j = 0; j < 2 * data->dim; j++) {
+						fjac[numParam * (data->dim + k) + (2 * data->dim * i + j)] = func[2 * data->dim * k + j];
+					}
+				}
+			}
+			else {
+				func = std::vector<real>((data->dim + 1) * (2 * data->dim + 1), 0);
+				myModel.FinalHFunction(t2, X_tf, data->X[data->numMulti], data->mode_X[data->numMulti], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int j = 0; j < 2 * data->dim; j++) {
+						fjac[numParam * (data->dim + k) + (2 * data->dim * i + j)] = func[(2 * data->dim + 1) * k + j];
+					}
+				}
+				for (int k = 0; k < data->dim; k++) {
+					fjac[numParam * (data->dim + k) + nbrParam] = func[(2 * data->dim + 1) * k + 2 * data->dim];
+				}
+				for (int j = 0; j < 2 * data->dim; j++) {
+					fjac[numParam * nbrParam + (2 * data->dim * i + j)] = func[(2 * data->dim + 1) * data->dim + j];
+				}
+				fjac[numParam * nbrParam + nbrParam] = func[(2 * data->dim + 1) * data->dim + 2 * data->dim];
 				nbrParam += 1;
 				assert(nbrParam == data->numParam);
 			}
@@ -924,7 +1130,7 @@ void shooting::ShootingFunction(int n, std::vector<real> const& param, std::vect
 }
 
 // Function for root finding (Parallelized)
-void shooting::ShootingFunctionParallel(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const
+void shooting::ShootingFunctionParallel(int n, std::vector<real> const& param, std::vector<real> & fvec) const
 {
 	int numParam = data->numParam;
 
@@ -951,6 +1157,34 @@ void shooting::ShootingFunctionParallel(int n, std::vector<real> const& param, s
 	}
 }
 
+// Function for root finding (Parallelized)
+void shooting::ShootingFunctionJacobianParallel(int n, std::vector<real> const& param, std::vector<real> & fjac) const
+{
+	int numParam = data->numParam;
+
+	// Get the timeline
+	std::vector<real> timeLine(data->numMulti + 1);
+	ComputeTimeLine(param, timeLine);
+
+	// Process multiple shooting
+	for (int i = 0; i < data->numThread; i++) {
+		data->threadNum[i] = i;
+		data->userThreadData[i][0] = (void*)this;
+		data->userThreadData[i][1] = (void*)&n;
+		data->userThreadData[i][2] = (void*)param.data();
+		data->userThreadData[i][3] = (void*)fjac.data();
+		data->userThreadData[i][4] = (void*)&data->threadNum[i];
+		data->userThreadData[i][5] = (void*)&timeLine;
+
+		// Create thread for multi-shooting
+		data->mulThread[i].create(StaticShootingParallelFunctionJacobian, (void*)data->userThreadData[i].data());
+	}
+
+	for (int i = 0; i < data->numThread; i++) {
+		data->mulThread[i].join();
+	}
+}
+
 // Static function for parallel shooting
 void shooting::StaticShootingParallelFunction(void *arg) {
 	void **userArgs = (void**)arg;
@@ -962,6 +1196,19 @@ void shooting::StaticShootingParallelFunction(void *arg) {
 	std::vector<real> *timeLine = (std::vector<real>*) userArgs[5];
 
 	This->ShootingParallelFunctionThread(*n, param, fvec, *threadNum, *timeLine);
+}
+
+// Static function for parallel shooting
+void shooting::StaticShootingParallelFunctionJacobian(void *arg) {
+	void **userArgs = (void**)arg;
+	shooting* This = (shooting*)userArgs[0];
+	int* n = (int*)userArgs[1];
+	real* param = (real*)userArgs[2];
+	real* fjac = (real*)userArgs[3];
+	int* threadNum = (int*)userArgs[4];
+	std::vector<real> *timeLine = (std::vector<real>*) userArgs[5];
+
+	This->ShootingParallelFunctionJacobianThread(*n, param, fjac, *threadNum, *timeLine);
 }
 
 // Function for parallel shooting
@@ -1006,7 +1253,7 @@ void shooting::ShootingParallelFunctionThread(int n, real *param, real *fvec, in
 		}
 
 		// Compute trajectory from t1 to t2
-		X2 = Move(t1, X1, t2);
+		X2 = Move(t1, X1, t2, 0);
 
 		index = 2 * (j + 1)*data->dim;
 		if (j == 0) {
@@ -1014,12 +1261,12 @@ void shooting::ShootingParallelFunctionThread(int n, real *param, real *fvec, in
 			std::vector<real> func;
 			if (data->mode_t[0] == model::FIXED) {
 				func = std::vector<real>(data->dim);
-				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 0);
 				for (int k = 0; k<data->dim; k++) fvec[k] = func[k];
 			}
 			else {
 				func = std::vector<real>(data->dim + 1);
-				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func);
+				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 0);
 				for (int k = 0; k<data->dim; k++) fvec[k] = func[k];
 				fvec[2 * data->dim*data->numMulti] = func[data->dim];
 			}
@@ -1028,12 +1275,12 @@ void shooting::ShootingParallelFunctionThread(int n, real *param, real *fvec, in
 			for (int k = 0; k<2 * data->dim; k++)	Xp[k] = param[index + k];
 			// Switching function for free intermediate times
 			if (data->mode_t[j + 1] == model::FREE) {
-				real Si = myModel.SwitchingTimesFunction(t2, X2);
-				fvec[nbrParam] = Si;
+				model::mstate switchFunc = myModel.SwitchingTimesFunction(t2, X2, Xp, 0);
+				fvec[nbrParam] = switchFunc[0];
 				nbrParam += 1;
 			}
 			// continuity function for multiple shooting
-			MultipleShootingFunction(t2, X2, Xp, data->X[j + 1], data->mode_X[j + 1], funcMS);
+			MultipleShootingFunction(t2, X2, Xp, data->X[j + 1], data->mode_X[j + 1], data->mode_t[j + 1], funcMS, 0);
 			for (int k = 0; k<2 * data->dim; k++) fvec[index + k] = funcMS[k];
 			X1 = Xp;
 		}
@@ -1042,14 +1289,166 @@ void shooting::ShootingParallelFunctionThread(int n, real *param, real *fvec, in
 			std::vector<real> func;
 			if (data->mode_t[data->numMulti] == model::FIXED) {
 				func = std::vector<real>(data->dim);
-				myModel.FinalFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
+				myModel.FinalFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func, 0);
 				for (int k = 0; k<data->dim; k++) fvec[k + data->dim] = func[k];
 			}
 			else {
 				func = std::vector<real>(data->dim + 1);
-				myModel.FinalHFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func);
+				myModel.FinalHFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func, 0);
 				for (int k = 0; k<data->dim; k++) fvec[k + data->dim] = func[k];
 				fvec[nbrParam] = func[data->dim];
+				nbrParam += 1;
+				assert(nbrParam == data->numParam);
+			}
+		}
+
+	}
+
+};
+
+// Function for parallel shooting
+void shooting::ShootingParallelFunctionJacobianThread(int n, real *param, real *fjac, int threadNum, std::vector<real> const& timeLine) const {
+	// Data
+	model::mstate X1((2 * data->dim + 1) * (2 * data->dim), 0);
+	model::mstate State1(2 * data->dim);
+	model::mstate X2((2 * data->dim + 1) * (2 * data->dim), 0);
+	int index;
+	int nMulti;
+	int j, start;
+
+	nMulti = floor((real)data->numMulti / data->numThread);
+	int remainder = data->numMulti%data->numThread;
+	if (threadNum < remainder) {
+		nMulti += 1; 	// allocate remaining pieces to threads
+		start = threadNum * nMulti;
+	}
+	else {
+		start = threadNum * nMulti + remainder;
+	}
+
+	// parameter to get current switching time
+	int nbrParam = 2 * data->dim*data->numMulti;
+	for (int k = 0; k <= start; k++) {											// get first switching time processed by current thread
+		if (data->mode_t[k] == model::FREE) {
+			nbrParam += 1;
+		}
+	}
+
+	model::mstate Xp = X1;
+	model::mstate funcMS(2 * data->dim);
+	real t1, t2;
+	for (int i = 0; i < nMulti; i++) {
+		j = start + i; 		// index of the considered traj
+							// current time
+		t1 = timeLine[j];
+		t2 = timeLine[j + 1];
+
+		// Initial state
+		if (i == 0) {
+			for (int k = 0; k < 2 * data->dim; k++)	State1[k] = param[2 * j*data->dim + k];
+			for (int k = 0; k < 2 * data->dim; k++)	X1[k] = State1[k];
+			for (int k = 0; k < 2 * data->dim; k++)	X1[2 * data->dim * (k + 1) + k] = 1;		// Identity
+		}
+
+		// Compute trajectory from t1 to t2
+		X2 = Move(t1, X1, t2, 1);
+
+		index = 2 * (j + 1)*data->dim;
+		if (j == 0) {
+			// Compute the function to be solved
+			std::vector<real> func;
+			if (data->mode_t[0] == model::FIXED) {
+				func = std::vector<real>((data->dim) * (2 * data->dim), 0);
+				myModel.InitialFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int l = 0; l < 2 * data->dim; l++) {
+						fjac[data->numParam * k + l] = func[2 * data->dim * k + l];
+					}
+				}
+
+			}
+			else {
+				func = std::vector<real>((data->dim + 1) * (2 * data->dim + 1), 0);
+				myModel.InitialHFunction(timeLine[0], X1, data->X[0], data->mode_X[0], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int l = 0; l < 2 * data->dim; l++) {
+						fjac[data->numParam * k + l] = func[(2 * data->dim + 1) * k + l];
+					}
+				}
+				for (int k = 0; k < data->dim; k++) {
+					fjac[data->numParam * k + nbrParam] = func[(2 * data->dim + 1) * k + 2 * data->dim];
+				}
+				for (int l = 0; l < 2 * data->dim; l++) {
+					fjac[data->numParam * nbrParam + l] = func[(2 * data->dim + 1) * data->dim + l];
+				}
+				fjac[data->numParam * nbrParam + nbrParam] = func[(2 * data->dim + 1) * data->dim + 2 * data->dim];
+				//nbrParam += 1;
+			}
+		}
+		if (j < (data->numMulti - 1)) {
+			// Compute the function to be solved
+			model::mstate State_p(2 * data->dim, 0);
+			for (int k = 0; k < 2 * data->dim; k++)	State_p[k] = param[index + k];
+			Xp = model::mstate((2 * data->dim + 1) * 2 * data->dim, 0);
+			for (int k = 0; k < 2 * data->dim; k++)	Xp[k] = State_p[k];
+			for (int k = 0; k < 2 * data->dim; k++)	Xp[2 * data->dim * (k + 1) + k] = 1;		// Identity
+			// Switching function for free intermediate times
+			if (data->mode_t[j + 1] == model::FREE) {
+				funcMS = model::mstate(2 * data->dim * (4 * data->dim + 1), 0);
+				MultipleShootingFunction(t2, X2, Xp, data->X[j + 1], data->mode_X[j + 1], data->mode_t[j + 1], funcMS, 1);
+				for (int k = 0; k < 2 * data->dim; k++) {
+					for (int l = 0; l < 4 * data->dim + 1; l++) {
+						fjac[data->numParam * (index + k) + (index - 2 * data->dim + l)] = funcMS[(4 * data->dim + 1) * k + l];
+					}
+					fjac[data->numParam * (index + k) + nbrParam] = funcMS[(4 * data->dim + 1) * k + 4 * data->dim];
+				}
+
+				model::mstate switchFunc = myModel.SwitchingTimesFunction(t2, X2, Xp, 1);
+				assert(switchFunc.size() == 4 * data->dim + 1);
+				for (int l = 0; l < 4 * data->dim; l++) {
+					fjac[data->numParam * nbrParam + (index - 2 * data->dim + l)] = switchFunc[l];
+				}
+				fjac[data->numParam * nbrParam + nbrParam] = switchFunc[4 * data->dim];
+				nbrParam += 1;
+			}
+			else {
+				funcMS = model::mstate(2 * data->dim * (4 * data->dim + 1), 0);
+				MultipleShootingFunction(t2, X2, Xp, data->X[j + 1], data->mode_X[j + 1], data->mode_t[j + 1], funcMS, 1);
+				for (int k = 0; k < 2 * data->dim; k++) {
+					for (int l = 0; l < 4 * data->dim; l++) {
+						fjac[data->numParam * (index + k) + (index - 2 * data->dim + l)] = funcMS[(4 * data->dim + 1) * k + l];
+					}
+				}
+			}
+			X1 = Xp;
+		}
+		if (j == (data->numMulti - 1)) {
+			// Compute the function to be solved
+			std::vector<real> func;
+			if (data->mode_t[data->numMulti] == model::FIXED) {
+				func = std::vector<real>((data->dim) * (2 * data->dim), 0);
+				myModel.FinalFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int l = 0; l < 2 * data->dim; l++) {
+						fjac[data->numParam * (data->dim + k) + (2 * data->dim * j + l)] = func[2 * data->dim * k + l];
+					}
+				}
+			}
+			else {
+				func = std::vector<real>((data->dim + 1) * (2 * data->dim + 1), 0);
+				myModel.FinalHFunction(t2, X2, data->X[data->numMulti], data->mode_X[data->numMulti], func, 1);
+				for (int k = 0; k < data->dim; k++) {
+					for (int l = 0; l < 2 * data->dim; l++) {
+						fjac[data->numParam * (data->dim + k) + (2 * data->dim * j + l)] = func[(2 * data->dim + 1) * k + l];
+					}
+				}
+				for (int k = 0; k < data->dim; k++) {
+					fjac[data->numParam * (data->dim + k) + nbrParam] = func[(2 * data->dim + 1) * k + 2 * data->dim];
+				}
+				for (int k = 0; k < 2 * data->dim; k++) {
+					fjac[data->numParam * nbrParam + (2 * data->dim * j + k)] = func[(2 * data->dim + 1) * data->dim + k];
+				}
+				fjac[data->numParam * nbrParam + nbrParam] = func[(2 * data->dim + 1) * data->dim + 2 * data->dim];
 				nbrParam += 1;
 				assert(nbrParam == data->numParam);
 			}
@@ -1102,30 +1501,78 @@ void shooting::UpdateSolution() const{
 			// update data
 			for(int j=0;j<2*data->dim;j++)	X1[j] = data->tab_param[index+j];
 		}else{
-			X1 = Move(t_f);
+			X1 = Move(t_f, 0);
 		}
 	}
 
 }
 
 // Multiple Shooting function
-void shooting::MultipleShootingFunction(real const& t, model::mstate const& X, model::mstate const& Xp, model::mstate const& Xd, std::vector<int> const& mode_X, model::mstate & fvec) const{
+void shooting::MultipleShootingFunction(real const& t, model::mstate const& X, model::mstate const& Xp, model::mstate const& Xd, std::vector<int> const& mode_X, int mode_t, model::mstate & fvec, int isJac) const{
 	int dim = data->dim;
+	model::mstate State_t = { X.begin(), X.begin() + 2 * dim };
+	model::mstate fxt = myModel.Model(t, State_t, 0);
+	model::mstate State_p = { Xp.begin(), Xp.begin() + 2 * dim };
+	model::mstate fxp = myModel.Model(t, State_p, 0);
 	for (int j=0;j<dim;j++){
 		switch (mode_X[j]){
-			case model::FIXED :		fvec[j] = X[j] - Xd[j];
-								fvec[j+dim] = Xp[j] - Xd[j];
-								break;
-			case model::FREE :			myModel.SwitchingStateFunction(t, j, X, Xp, Xd, fvec);
-								break;
-			case model::CONTINUOUS :	fvec[j] = X[j] - Xp[j];
-								fvec[j+dim] = X[j+dim] - Xp[j+dim];
-								break;
-			default :			fvec[j] = X[j] - Xp[j];
-								fvec[j+dim] = X[j+dim] - Xp[j+dim];
-								break;
+			case model::FIXED :		
+				if (isJac == 0) {
+					fvec[j] = X[j] - Xd[j];
+					fvec[j + dim] = Xp[j] - Xd[j];
+				}
+				else {
+					for (int i = 0; i < 2 * dim; i++) {
+						fvec[(4 * dim + 1) * j + i] = X[2 * dim * (j + 1) + i];
+						fvec[(4 * dim + 1) * (j + dim) + 2 * dim + i] = Xp[2 * dim * (j + 1) + i];
+					}	
+					if (mode_t == model::FREE) {
+						fvec[(4 * dim + 1) * j + 4 * dim] = fxt[j];
+						fvec[(4 * dim + 1) * (j + dim) + 4 * dim] = fxp[j];
+					}
+				}								
+				break;
+			case model::FREE :
+// TO TEST
+				myModel.SwitchingStateFunction(t, j, X, Xp, Xd, fvec, isJac);
+				break;
+			case model::CONTINUOUS :	
+				if (isJac == 0) {
+					fvec[j] = X[j] - Xp[j];
+					fvec[j + dim] = X[j + dim] - Xp[j + dim];
+				}
+				else {
+					for (int i = 0; i < 2 * dim; i++) {
+						fvec[(4 * dim + 1) * j + i] = X[2 * dim * (j + 1) + i];
+						fvec[(4 * dim + 1) * j + 2 * dim + i] = - Xp[2 * dim * (j + 1) + i];
+						fvec[(4 * dim + 1) * (j + dim) + i] = X[2 * dim * (j + dim + 1) + i];
+						fvec[(4 * dim + 1) * (j + dim) + 2 * dim + i] = -Xp[2 * dim * (j + dim + 1) + i];
+					}
+					if (mode_t == model::FREE) {
+						fvec[(4 * dim + 1) * j + 4 * dim] = fxt[j] - fxp[j];
+						fvec[(4 * dim + 1) * (j + dim) + 4 * dim] = fxt[j + dim] - fxp[j + dim];
+					}
+				}
+				
+				
+				break;
+			default :			
+				if (isJac == 0) {
+					fvec[j] = X[j] - Xp[j];
+					fvec[j + dim] = X[j + dim] - Xp[j + dim];
+				}
+				else {
+					for (int i = 0; i < 2 * dim; i++) {
+						fvec[2 * dim * j + i] = X[2 * dim * (j + 1) + i];
+						fvec[2 * dim * j + 2 * dim + i] = -Xp[2 * dim * (j + 1) + i];
+						fvec[2 * dim * (j + dim) + i] = X[2 * dim * (j + dim + 1) + i];
+						fvec[2 * dim * (j + dim) + 2 * dim + i] = -Xp[2 * dim * (j + dim + 1) + i];
+					}
+				}
+				break;
 		}
 	}
+
 };
 
 // Compute timeline

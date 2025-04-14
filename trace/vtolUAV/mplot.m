@@ -3,7 +3,7 @@ close all;
 clc;
 
 %% run algorithm
-modeMPP = 0; % 0: (MPP)_{1,sigma} ; 1: (MPP)_{1,0} ; 2: (MPP)_{1,inf}
+modeMPP = 2; % 0: (MPP)_{1,sigma} ; 1: (MPP)_{1,0} ; 2: (MPP)_{1,inf}
 sigma = 2;
 mu = 1;
 param = [modeMPP, sigma, mu];

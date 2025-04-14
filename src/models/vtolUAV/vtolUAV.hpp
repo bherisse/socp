@@ -30,6 +30,8 @@ public:
 		real invSigmaXwp;		///< weight for cost at intermediate points 
 		real Vd;				///< desired velocity
 		real ca;				///< drag coefficient
+		int nWP_tot;			///< total number of WP
+		int nWP;				///< current number of WP
 	};
 
 	/**
@@ -51,12 +53,12 @@ public:
 	/**
 	* Final function value for the considered Optimal Control Problem
 	*/
-	virtual void FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const;
+	virtual void FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const;
 
 	/**
 	* Function value for the considered control problem with free final time
 	*/
-	virtual void FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const;
+	virtual void FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const;
 
 	/**
 	* Update Switching times
@@ -66,7 +68,7 @@ public:
 	/**
 	* Switching function
 	*/
-	virtual void SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate const& Xd, mstate & fvec) const;
+	virtual void SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate const& Xd, mstate & fvec, int isJac) const;
 
 	/**
 	* Get Model
@@ -90,7 +92,7 @@ private:
 	/**
 	* State model of the vehicle
 	*/
-	virtual mstate Model(real const& t, mstate const& X) const;
+	virtual mstate Model(real const& t, mstate const& X, int isJac) const;
 
 	/**
 	* Control model of the vehicle
@@ -100,12 +102,12 @@ private:
 	/**
 	* Hamiltonian of the vehicle
 	*/
-	virtual real Hamiltonian(real const& t, mstate const& X) const;
+	virtual mstate Hamiltonian(real const& t, mstate const& X, int isJac) const;
 
 	/**
 	* Integrate state equations with a RK4
 	*/
-	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace);
+	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac);
 
 };
 

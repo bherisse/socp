@@ -215,7 +215,11 @@ void obstacle::ObstaclePenalizationFunction(std::vector<real> const& position, r
 			//if (hx*data->parameters.muObs <= data->penalizationRange &&
 			//	hy*data->parameters.muObs <= data->penalizationRange &&
 			//	hz*data->parameters.muObs <= data->penalizationRange)
-				funcObs = funcObs + (1 - tanh(hx))*(1 - tanh(hy))*(1 - tanh(hz)) / 8;
+
+			funcObs = funcObs + (1 - tanh(hx))*(1 - tanh(hy))*(1 - tanh(hz)) / 8;
+
+			//h = fmin(hx, fmin(hy, hz));
+			//funcObs = funcObs + (1 - tanh(h)) / 2;
 		}
 		else {
 			funcObs = funcObs;
@@ -274,6 +278,29 @@ void obstacle::ObstaclePenalizationGradient(std::vector<real> const& position, s
 				gradObs[1] = gradObs[1] - (position[1] - y) / fabs(position[1] - y) / data->parameters.muObs*(1 - tanh(hy)*tanh(hy))*(1 - tanh(hx))*(1 - tanh(hz)) / 8;
 				gradObs[2] = gradObs[2] - (position[2] - z) / fabs(position[2] - z) / data->parameters.muObs*(1 - tanh(hz)*tanh(hz))*(1 - tanh(hx))*(1 - tanh(hy)) / 8;
 			}
+
+			//real gradx, grady, gradz;
+			//h = hx;
+			//gradx = -(position[0] - x) / fabs(position[0] - x) / data->parameters.muObs*(1 - tanh(hx)*tanh(hx)) / 2;
+			//grady = 0;
+			//gradz = 0;
+			//if (h > hy) {
+			//	h = hy;
+			//	gradx = 0;
+			//	grady = -(position[1] - y) / fabs(position[1] - y) / data->parameters.muObs*(1 - tanh(hy)*tanh(hy)) / 2;
+			//	gradz = 0;
+			//}
+			//if (h > hz) {
+			//	h = hz;
+			//	gradx = 0;
+			//	grady = 0;
+			//	gradz = -(position[2] - z) / fabs(position[2] - z) / data->parameters.muObs*(1 - tanh(hz)*tanh(hz)) / 2;
+			//}
+			//gradObs[0] = gradObs[0] + gradx;
+			//gradObs[1] = gradObs[1] + grady;
+			//gradObs[2] = gradObs[2] + gradz;
+
+
 		}
 		else {
 			gradObs[0] = gradObs[0];

@@ -20,7 +20,7 @@ struct goddard::data_struct {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-goddard::goddard(std::string the_fileTrace, int stepNbr) : model(7, stepNbr, the_fileTrace) {
+goddard::goddard(std::string the_fileTrace, int stepNbr) : model(7, 0, stepNbr, the_fileTrace) {
 	// vehicle data
 	data = new data_struct;
 
@@ -45,7 +45,7 @@ goddard::~goddard() {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-goddard::mstate goddard::Model(real const& t, mstate const& X) const {
+goddard::mstate goddard::Model(real const& t, mstate const& X, int isJac) const {
 	mstate Xdot(X.size());
 
 	// current state and costate value
@@ -253,7 +253,7 @@ real goddard::GetSingularControl(real t, mstate const& X) const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-real goddard::Hamiltonian(real const& t, mstate const& X) const {
+goddard::mstate goddard::Hamiltonian(real const& t, mstate const& X, int isJac) const {
 	// current state value
 	real x = X[0];
 	real y = X[1];
@@ -291,18 +291,18 @@ real goddard::Hamiltonian(real const& t, mstate const& X) const {
 		+ p_vz*(-KD*v*vz*exp(-kr*(r - 1)) / mass - g*z / r + C*u[2] / mass)
 		- p_mass*b*norm_u;
 
-	return H;
+	return goddard::mstate({ H });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-goddard::mstate goddard::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace) {
+goddard::mstate goddard::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac) {
 	std::stringstream ss;
 
 	real dt = (tf - t0) / stepNbr;		// time step
 	mstate Xs = X;
 
 	if (isTrace) {
-		odeTools::integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this,ss));
+		odeTools::integrate(modelStruct(this, isJac), Xs, t0, tf, dt, observerStruct(this,ss));
 		// write in trace file
 		std::ofstream fileTrace;
 		fileTrace.open(strFileTrace.c_str(), std::ios::app);
@@ -310,7 +310,7 @@ goddard::mstate goddard::ModelInt(real const& t0, mstate const& X, real const& t
 		fileTrace.close();
 	}
 	else {
-		odeTools::integrate(modelStruct(this), Xs, t0, tf, dt);
+		odeTools::integrate(modelStruct(this, isJac), Xs, t0, tf, dt);
 	}
 
 	return Xs;
@@ -322,7 +322,7 @@ void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) co
 	mstate control = Control(t, X);
 
 	// H is computed
-	real H = Hamiltonian(t, X);
+	mstate H = Hamiltonian(t, X, 0);
 
 	// write in trace file
 	file << t << "\t";
@@ -332,7 +332,7 @@ void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) co
 	for (int k = 0; k<control.size(); k++) {
 		file << control[k] << "\t";
 	}
-	file << H << "\t";
+	file << H[0] << "\t";
 
 	// additional trace
 	real Switch = parameters.at("mu1") - parameters.at("b")*X[13] - parameters.at("C") / X[6] * sqrt(X[10] * X[10] + X[11] * X[11] + X[12] * X[12]);
@@ -340,7 +340,7 @@ void goddard::Trace(real const& t, mstate const& X, std::stringstream & file) co
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-real goddard::SwitchingTimesFunction(real const& t, mstate const& X) const {
+goddard::mstate goddard::SwitchingTimesFunction(real const& t, mstate const& X, mstate const& Xp,  int isJac) const {
 	// current state value
 	real x = X[0];
 	real y = X[1];
@@ -365,11 +365,8 @@ real goddard::SwitchingTimesFunction(real const& t, mstate const& X) const {
 	//real Switch = parameters.at("mu1") - b*p_mass - C/mass*norm_pv;
 
 	// Using Switch or Hamiltonian is equivalent in this case (free final time)
-	real fvec = 0;
-	//fvec = Switch;
-	fvec = Hamiltonian(t, X);
 
-	return fvec;
+	return Hamiltonian(t, X, isJac);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////

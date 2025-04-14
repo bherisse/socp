@@ -17,3 +17,7 @@ endif ()
 if (BUILD_COVID19)
 	add_subdirectory (covid19)
 endif ()
+
+if (BUILD_DOUBLE_INTEGRATOR)
+	add_subdirectory (doubleIntegrator)
+endif ()

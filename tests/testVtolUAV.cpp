@@ -35,7 +35,7 @@ int main(int argc, char** argv){
 	/********************************************************/
 	/***************** Read args ****************************/
 	/********************************************************/
-	real sigma=2, mu=1;
+	real sigma=60., mu=1;
 	if (argc > 1 && argc <= 4) {
 		modeMPP = atoi(argv[1]);		//	modeMPP
 		sigma = atof(argv[2]);			// sigma
@@ -58,6 +58,9 @@ int main(int argc, char** argv){
 	obstacle my_obstacle = obstacle(my_fileObstacles, my_fileWP);
 	/// new model object
 	vtolUAV my_vtolUAV(my_obstacle, my_fileTrace);
+	if (modeMPP < 2) {
+		my_vtolUAV.GetParameterData().nWP_tot = my_obstacle.GetPath().size() - 1;
+	}
 	shooting my_shooting_wp(my_vtolUAV, 1, 1);
 	my_shooting_wp.SetPrecision(1e-4);
 	my_vtolUAV.SetODEIntPrecision(1e-5);
@@ -90,11 +93,11 @@ int main(int argc, char** argv){
 	/*********** continuation on a model parameter **********/
 	/********************************************************/
 	std::cout << "Continuation on parameter invSigma... ";
-	if (info == 1) info = my_shooting_wp.SolveOCP(0.1, my_vtolUAV.GetParameterData().invSigmaXwp, 1/ sigma);
+	if (info == 1) info = my_shooting_wp.SolveOCP(1.0, my_vtolUAV.GetParameterData().invSigmaXwp, 1/ sigma);
 	std::cout << "OK = " << info << ", done" << std::endl;
 
 	std::cout << "Continuation on parameter muObs... "; 
-	if (info == 1) info = my_shooting_wp.SolveOCP(0.1, my_obstacle.GetParameterData().muObs, mu);
+	if (info == 1) info = my_shooting_wp.SolveOCP(1.0, my_obstacle.GetParameterData().muObs, mu);
 	std::cout << "OK = " << info << ", done" << std::endl;
 
 	//std::cout << "Continuation on parameter u_max... ";
@@ -164,6 +167,7 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 	int nMulti = 1; //n_wp-1; // number of points for multi-shooting
 	int nThread = 4; // number of threads for parallel computing
 	_shooting_wp.Resize(nMulti, nThread);
+	_votlUAV.GetParameterData().nWP = nMulti-1;
 
 	// Setting modeMPP
 	std::vector<int> mode_t(nMulti+1);
@@ -173,7 +177,10 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 	std::vector< std::vector<int> > mode_X(nMulti+1);
 	mode_X[0] = std::vector<int>(modelDim,0);
 	//mode_X[0][3] = 1; mode_X[0][4] = 1; mode_X[0][5] = 1; //v0 free
-	mode_X[nMulti] = std::vector<int>(modelDim,0);
+	mode_X[nMulti] = std::vector<int>(modelDim,1);
+	if (modeMPP == 1) {
+		mode_X[nMulti] = std::vector<int>(modelDim, 0);
+	}
 	mode_X[nMulti][3] = 1; mode_X[nMulti][4] = 1; mode_X[nMulti][5] = 1; //vf free
 	for (int i=1; i<nMulti; i++){
 		mode_X[i] = std::vector<int>(modelDim,2);
@@ -189,9 +196,9 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 		vX[i][0] = pathStateWP[i][0];
 		vX[i][1] = pathStateWP[i][1];
 		vX[i][2] = pathStateWP[i][2];
-		vX[i][3] = 0.001*pathStateWP[i][3];	// to avoid dividing by 0, should be != 0
-		vX[i][4] = 0.001*pathStateWP[i][4];
-		vX[i][5] = 0.001*pathStateWP[i][5];
+		vX[i][3] = 0.001;//*pathStateWP[i][3];	// to avoid dividing by 0, should be != 0
+		vX[i][4] = 0.001;//*pathStateWP[i][4];
+		vX[i][5] = 0.001;//*pathStateWP[i][5];
 	}
 	// guess first solution
 	std::vector<real> dX(3);
@@ -215,8 +222,10 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 	int Nwp = nMulti;
 	int end = pathStateWP.size();
 	double lambda = 0;
-	while(info==1 && Nwp<end){
-		//std::cout << "nMulti =  " << nMulti << std::endl;
+	while (info == 1 && Nwp < end) {
+		std::cout << "nMulti =  " << nMulti << std::endl;
+		//std::cout << "nWP =  " << _votlUAV.GetParameterData().nWP << std::endl;
+		//std::cout << "nWP_tot =  " << _votlUAV.GetParameterData().nWP_tot << std::endl;
 
 		//lambda += pathDistanceWP[Nwp -1];
 		//std::cout << "lambda =  " << lambda << std::endl;
@@ -224,20 +233,20 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 		/// Compute the traj with multi shooting from x_wp[0] (start) to x_wp[iter]
 		info = _shooting_wp.SolveOCP(1.0);		// solve OCP 
 		if (nMulti == 1 && info) {
-			info = _shooting_wp.SolveOCP(1, _votlUAV.GetParameterData().ca, 0.05);
+			info = _shooting_wp.SolveOCP(0.1, _votlUAV.GetParameterData().ca, 0.05);
 			//info = _shooting_wp.SolveOCP(1, _votlUAV.GetParameterData().alphaV, 0.00);
 		}
-		if (info!=1){
+		if (info != 1) {
 			std::cout << "failed iter " << nMulti << std::endl;
 			break;
 		}
-		_shooting_wp.GetSolution(vt,vX);
+		_shooting_wp.GetSolution(vt, vX);		
 
 		// get time
 		timeWP[Nwp] = clock();
 
 		/// update for next iteration
-		nMulti = nMulti +1;		// to comment for no multi
+		nMulti = nMulti + 1;		// to comment for no multi
 		Nwp += 1;
 		if (Nwp < end) {
 			vt.resize(nMulti + 1);					// Timeline
@@ -245,8 +254,12 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 			mode_t.resize(nMulti + 1);
 			mode_X.resize(nMulti + 1);
 
+			if (modeMPP < 2) {
+				_votlUAV.GetParameterData().nWP += 1;
+			}
+
 			if (modeMPP > 1) { // (MPP)_{1,inf}
-				real tf = vt[nMulti - 1] + 0.5 * 10;		// to comment for no multi
+				real tf = vt[nMulti - 1] + 0.4 * 10;		// to comment for no multi
 				for (int i = 0; i < nMulti + 1; i++) vt[i] = i*tf / nMulti;		// to comment for no multi
 				for (int i = 0; i < nMulti + 1; i++) {
 					vX[i] = _shooting_wp.Move(vt[i]);
@@ -257,29 +270,41 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 				mode_t[nMulti] = 1;	// tf free
 				mode_X[0] = std::vector<int>(modelDim, 0);
 				//mode_X[0][3] = 1; mode_X[0][4] = 1; mode_X[0][5] = 1; //v0 free
-				mode_X[nMulti] = std::vector<int>(modelDim, 0);
-				if (nMulti < end - 1) {
-					mode_X[nMulti][3] = 1; mode_X[nMulti][4] = 1; mode_X[nMulti][5] = 1; //vf free
-				}
+				mode_X[nMulti] = std::vector<int>(modelDim, 1);
+				//if (nMulti < end) {
+				//	mode_X[nMulti][3] = 1; mode_X[nMulti][4] = 1; mode_X[nMulti][5] = 1; //vf free
+				//}
 				for (int i = 1; i < nMulti; i++) {
 					mode_X[i] = std::vector<int>(modelDim, 2);
 				}
 			}else{
-				vt[nMulti] = vt[nMulti - 1] + 0.3 * 10;
+				vt[nMulti] = vt[nMulti - 1] + 0.4 * 10;
 				vX[nMulti] = _shooting_wp.Move(vt[nMulti]);
+				//vX[nMulti] = vX[nMulti - 1];
+				//vX[nMulti-1][modelDim + 0] -= _votlUAV.GetParameterData().invSigmaXwp*(vX[nMulti - 1][0] - pathStateWP[Nwp - 1][0]);
+				//vX[nMulti-1][modelDim + 1] -= _votlUAV.GetParameterData().invSigmaXwp*(vX[nMulti - 1][1] - pathStateWP[Nwp - 1][1]);
+				//vX[nMulti-1][modelDim + 2] -= _votlUAV.GetParameterData().invSigmaXwp*(vX[nMulti - 1][2] - pathStateWP[Nwp - 1][2]);
+				//vX[nMulti-1][modelDim + 3] -= 0.01*_votlUAV.GetParameterData().invSigmaXwp*(vX[nMulti - 1][3] - 0.001);
+				//vX[nMulti-1][modelDim + 4] -= 0.01*_votlUAV.GetParameterData().invSigmaXwp*(vX[nMulti - 1][4] - 0.001);
+				//vX[nMulti-1][modelDim + 5] -= 0.01*_votlUAV.GetParameterData().invSigmaXwp*(vX[nMulti - 1][5] - 0.001);
+				//vX[nMulti] = _shooting_wp.Move(vt[nMulti - 1], vX[nMulti-1], vt[nMulti]);
+				//std::cout << "vX2 =  " << vX[nMulti - 1][7] << std::endl;
 				for (int i = 1; i < nMulti; i++) mode_t[i] = 1; // free times on the timeline
 				mode_t[nMulti] = 1;	// tf free
 				mode_X[0] = std::vector<int>(modelDim, 0);
 				//mode_X[0][3] = 1; mode_X[0][4] = 1; mode_X[0][5] = 1; //v0 free
-				mode_X[nMulti] = std::vector<int>(modelDim, 0);
-				if (nMulti < end - 1) {
+				mode_X[nMulti] = std::vector<int>(modelDim, 1);
+				if (modeMPP == 1) {
+					mode_X[nMulti] = std::vector<int>(modelDim, 0);
+				}
+				if (nMulti < end-1) {
 					mode_X[nMulti][3] = 1; mode_X[nMulti][4] = 1; mode_X[nMulti][5] = 1; //vf free
 				}
 				for (int i = 1; i < nMulti; i++) {
-					mode_X[i] = std::vector<int>(modelDim, 2);
-					mode_X[i][0] = 0; mode_X[i][1] = 0; mode_X[i][2] = 0;
-					if (modeMPP == 0) {
-						mode_X[i][0] = 1; mode_X[i][1] = 1; mode_X[i][2] = 1;		// to use cost at intermediate waypoints
+					mode_X[i] = std::vector<int>(modelDim, 1);
+					mode_X[i][3] = 2; mode_X[i][4] = 2; mode_X[i][5] = 2;
+					if (modeMPP == 1) {
+						mode_X[i][0] = 0; mode_X[i][1] = 0; mode_X[i][2] = 0;
 					}
 				}
 			}
@@ -295,9 +320,9 @@ int PathContinuation(vtolUAV & _votlUAV, shooting & _shooting_wp, std::vector<st
 				vX[i][0] = pathStateWP[i][0];
 				vX[i][1] = pathStateWP[i][1];
 				vX[i][2] = pathStateWP[i][2];
-				vX[i][3] = 0.001*pathStateWP[i][3];
-				vX[i][4] = 0.001*pathStateWP[i][4];
-				vX[i][5] = 0.001*pathStateWP[i][5];
+				vX[i][3] = 0.001;//*pathStateWP[i][3];
+				vX[i][4] = 0.001;//*pathStateWP[i][4];
+				vX[i][5] = 0.001;//*pathStateWP[i][5];
 			}
 			_shooting_wp.SetDesiredState(vt, vX);
 

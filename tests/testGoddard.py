@@ -16,7 +16,7 @@ import pySOCP
 sys.path.insert(0, '../binaries/python/goddard')
 import pyGoddard
 
-# Goddard class coded in Python using wrapped SOCP library (inherited from abstract model class)
+# # Goddard class coded in Python using wrapped SOCP library (inherited from abstract model class)
 # sys.path.insert(0, '../python/goddard')
 # import pyGoddard
 

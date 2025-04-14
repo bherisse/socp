@@ -36,7 +36,7 @@ class data_struct(object):
 
 class goddard(pySOCP.model):
     def __init__(self, the_fileTrace, stepNbr):
-        super().__init__(7, stepNbr, the_fileTrace)         # call the constructor of model class
+        super().__init__(7, 0, stepNbr, the_fileTrace)         # call the constructor of model class
         paramStruct = parameters_struct(3.5, 7, 310, 500, 1, 1, 0, -1)
         self.parameters["C"] = paramStruct.C;								# C: coefficient for thrust
         self.parameters["b"] = paramStruct.b;								# b: coefficient for mass flow rate
@@ -49,7 +49,7 @@ class goddard(pySOCP.model):
         switchingTimes = [0.0227, 0.08]
         self.data = data_struct(switchingTimes)
         
-    def Model(self, t, X):
+    def Model(self, t, X, isJac = 0):
         # current state and costate value
         x = X[0]
         y = X[1]
@@ -242,7 +242,7 @@ class goddard(pySOCP.model):
         
         return alpha_u;
     
-    def Hamiltonian(self, t, X):
+    def Hamiltonian(self, t, X, isJac = 0):
         # current state and costate value
         x = X[0]
         y = X[1]
@@ -279,11 +279,14 @@ class goddard(pySOCP.model):
             + p_vy*(-KD*v*vy*math.exp(-kr*(r - 1)) / mass - g*y / r + C*u[1] / mass)\
             + p_vz*(-KD*v*vz*math.exp(-kr*(r - 1)) / mass - g*z / r + C*u[2] / mass)\
             - p_mass*b*norm_u;
+            
+        Hvec = pySOCP.dVector(1)
+        Hvec[0] = H
 
-        return H;
+        return Hvec;
     
-    # Optional redefinition of ModelInt
-    # def ModelInt(self, t0, X0, tf, isTrace):
+    # # Optional redefinition of ModelInt
+    # def ModelInt(self, t0, X0, tf, isTrace, isJac = 0):
     #     dt = (tf-t0) / self.stepNbr;     # time step
     #     Xs = list(range(X0.size()))
     #     for i in range(X0.size()):
@@ -303,7 +306,7 @@ class goddard(pySOCP.model):
     #             control = self.Control(t[i], X[i,:]);
     #             for item in control:
     #                 fileTrace.write("%s\t" % item)
-    #             fileTrace.write("%s\t" % self.Hamiltonian(t[i], X[i,:]))
+    #             fileTrace.write("%s\t" % self.Hamiltonian(t[i], X[i,:])[0])
     #             fileTrace.write("\n")
     #         fileTrace.close();
         
@@ -313,7 +316,7 @@ class goddard(pySOCP.model):
             
     #     return Xr;
     
-    def SwitchingTimesFunction(self, t, X):
+    def SwitchingTimesFunction(self, t, X, Xp, isJac = 0):
         # current state and costate value
         x = X[0]
         y = X[1]
@@ -339,7 +342,7 @@ class goddard(pySOCP.model):
 
         # Using Switch or Hamiltonian is equivalent in this case (free final time)
         #fvec = Switch;
-        fvec = self.Hamiltonian(t, X);
+        fvec = self.Hamiltonian(t, X, 0);
         
         return fvec;
         

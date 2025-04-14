@@ -65,13 +65,13 @@ public:
 	/**
 	* Compute trajectory from t0 to tf with initial state X0
 	*/
-	virtual mstate ComputeTraj(real const& t0, mstate const& X0, real const& tf, int isTrace);
+	virtual mstate ComputeTraj(real const& t0, mstate const& X0, real const& tf, int isTrace, int isJac);
 
 	/**
 	* Function value for the considered control problem
 	*/
-	virtual void FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const;
-	virtual void FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const;
+	virtual void FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const;
+	virtual void FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const;
 
 	/**
 	* Guess from analytical solution
@@ -93,7 +93,7 @@ private:
 	/**
 	* State model of the vehicle
 	*/
-	virtual mstate Model(real const& t, mstate const& X) const;
+	virtual mstate Model(real const& t, mstate const& X, int isJac) const;
 	static mstate static_Model(real const& t, interceptor::mstate const& X, void *model);
 	mstate Model_1(real const& t, mstate const& X) const;
 	mstate Model_2(real const& t, mstate const& X) const;
@@ -108,14 +108,14 @@ private:
 	/**
 	* Hamiltonian of the vehicle
 	*/
-	virtual real Hamiltonian(real const& t, mstate const& X) const;
+	virtual mstate Hamiltonian(real const& t, mstate const& X, int isJac) const;
 	real Hamiltonian_1(real const& t, mstate const& X) const;
 	real Hamiltonian_2(real const& t, mstate const& X) const;
 
 	/**
 	* Integrate state equations with a RK4
 	*/
-	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace);
+	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac);
 
 	/**
 	* Trace state

@@ -24,3 +24,13 @@ if (BUILD_COVID19)
 	target_link_libraries(testCovid19 socp covid19)
 	install (TARGETS testCovid19 DESTINATION bin)
 endif ()
+
+if (BUILD_DOUBLE_INTEGRATOR)
+	add_executable(testDoubleIntegrator testDoubleIntegrator.cpp)
+	target_link_libraries(testDoubleIntegrator socp doubleIntegrator)
+	install (TARGETS testDoubleIntegrator DESTINATION bin)
+	
+	add_executable(testDoubleIntegrator_WP testDoubleIntegrator_WP.cpp)
+	target_link_libraries(testDoubleIntegrator_WP socp doubleIntegrator)
+	install (TARGETS testDoubleIntegrator_WP DESTINATION bin)
+endif ()

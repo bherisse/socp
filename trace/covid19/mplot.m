@@ -31,8 +31,9 @@ print -djpeg SR
 h3 = figure(3);
 % set(h3,'Visible', 'off'); 
 hold on
-plot(data(:,1), (1-data(:,10))*4,'b','LineWidth',2)
-plot(data(:,1), ones(length(data(:,1)),1)*4,'--b','LineWidth',2)
+R0 = 3.4;
+plot(data(:,1), (1-data(:,10))*R0,'b','LineWidth',2)
+plot(data(:,1), ones(length(data(:,1)),1)*R0,'--b','LineWidth',2)
 xlabel('time (days)')
 ylabel('controlled contagiousness = R_0(1-u)')
 title('controlled contagiousness = R_0(1-u)')

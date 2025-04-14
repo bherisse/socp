@@ -29,11 +29,13 @@ vtolUAV::vtolUAV(map & map, std::string the_fileTrace) : model(6), myMap(map){
 		data->parameters.a_max = 0.3;				// max acceleration
 		data->parameters.alphaT = 0.05;				// weight for time cost
 		data->parameters.alphaV = 0*0.05;			// weight for Vd
-		data->parameters.invSigmaXwp = 0.5;			// weight for cost at intermediate points 
+		data->parameters.invSigmaXwp = 1./60;			// weight for cost at intermediate points 
 		data->parameters.Vd = 1;					// desired velocity
 		data->parameters.ca = 0*0.05;//0.05			// drag coefficient
+		data->parameters.nWP_tot = 0;				// total number of WP (including final point)
+		data->parameters.nWP = 0;					// current number of WP
 	data->switchingTimes = std::vector<real>();
-	data->stepNbr = 10;//5;							// step number for ModelInt
+	data->stepNbr = 100;//5;							// step number for ModelInt
 	data->strFileTrace = the_fileTrace;				// trace file
 
 	// trace file
@@ -53,7 +55,7 @@ map & vtolUAV::GetMap() const {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-vtolUAV::mstate vtolUAV::Model(real const& t, mstate const& X) const{
+vtolUAV::mstate vtolUAV::Model(real const& t, mstate const& X, int isJac) const{
 	mstate Xdot(X.size());
 	
 	// current state value
@@ -146,7 +148,7 @@ vtolUAV::mcontrol vtolUAV::Control(real const& t, mstate const& X) const{
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-real vtolUAV::Hamiltonian(real const& t, mstate const& X) const{
+vtolUAV::mstate vtolUAV::Hamiltonian(real const& t, mstate const& X, int isJac) const{
 	// current state value
 	real x = 		X[0];
 	real y = 		X[1];
@@ -186,11 +188,11 @@ real vtolUAV::Hamiltonian(real const& t, mstate const& X) const{
 			+ p_x*vx + p_y*vy + p_z*vz 
 			+ (p_vx*(a_max*u[0] - data->parameters.ca*vx*normV) + p_vy*(a_max*u[1] - data->parameters.ca*vy*normV) + p_vz*(a_max*u[2] - data->parameters.ca*vz*normV));
 
-	return H;
+	return mstate({ H });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-vtolUAV::mstate vtolUAV::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace){
+vtolUAV::mstate vtolUAV::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac){
 	std::stringstream ss;
 	
 	real t = t0;								// time
@@ -198,7 +200,7 @@ vtolUAV::mstate vtolUAV::ModelInt(real const& t0, mstate const& X, real const& t
 	mstate Xs = X;
 
 	if (isTrace) {
-		integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this, ss));
+		integrate(modelStruct(this, isJac), Xs, t0, tf, dt, observerStruct(this, ss));
 		// write in trace file
 		std::ofstream fileTrace;
 		fileTrace.open(data->strFileTrace.c_str(), std::ios::app);
@@ -206,7 +208,7 @@ vtolUAV::mstate vtolUAV::ModelInt(real const& t0, mstate const& X, real const& t
 		fileTrace.close();
 	}
 	else {
-		integrate(modelStruct(this), Xs, t0, tf, dt);
+		integrate(modelStruct(this, isJac), Xs, t0, tf, dt);
 	}
 
 	return Xs;
@@ -218,12 +220,18 @@ vtolUAV::parameters_struct & vtolUAV::GetParameterData(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-void vtolUAV::FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const {
+void vtolUAV::FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const {
 	// Compute the function to solve
 	for (int j = 0; j<dim; j++) {
 		if (mode_X[j] == 1) {
 			// continuity => X(k+n) = 0 (transversality condition)
 			fvec[j] = X_tf[j + dim];
+			if (j < 3) {
+				fvec[j] = X_tf[j + dim] - data->parameters.invSigmaXwp*(data->parameters.nWP_tot - data->parameters.nWP)*(X_tf[j] - Xf[j]) - 0.02*(X_tf[j] - Xf[j]);
+			}
+			if (j>=3 && j < 6) {
+				fvec[j] = X_tf[j + dim] - data->parameters.invSigmaXwp*(data->parameters.nWP_tot - data->parameters.nWP)*(X_tf[j] - Xf[j]) - 0.02*(X_tf[j] - Xf[j]);
+			}
 		}
 		else {
 			// continuity => X(k) = Xf(k)
@@ -233,19 +241,25 @@ void vtolUAV::FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-void vtolUAV::FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const {
+void vtolUAV::FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const {
 	// Compute the function to solve
 	for (int j = 0; j<dim; j++) {
 		if (mode_X[j] == 1) {
 			// continuity => X(k+n) = 0 (transversality condition)
 			fvec[j] = X_tf[j + dim];
+			if (j < 3) {
+				fvec[j] = X_tf[j + dim] - data->parameters.invSigmaXwp*(data->parameters.nWP_tot - data->parameters.nWP)*(X_tf[j] - Xf[j]) - 0.02*(X_tf[j] - Xf[j]);
+			}
+			if (j >= 3 && j < 6) {
+				fvec[j] = X_tf[j + dim] - data->parameters.invSigmaXwp*(data->parameters.nWP_tot - data->parameters.nWP)*(X_tf[j] - Xf[j]) - 0.02*(X_tf[j] - Xf[j]);
+			}
 		}
 		else {
 			// continuity => X(k) = Xf(k)
 			fvec[j] = X_tf[j] - Xf[j];
 		}
 	}
-	fvec[dim] = Hamiltonian(tf, X_tf);
+	fvec[dim] = Hamiltonian(tf, X_tf, isJac)[0];
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,11 +270,14 @@ void vtolUAV::SwitchingTimesUpdate(std::vector<real> const& switchingTimes) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-void vtolUAV::SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate const& Xd, mstate & fvec) const {
+void vtolUAV::SwitchingStateFunction(real const& t, int const& stateID, mstate const& X, mstate const& Xp, mstate const& Xd, mstate & fvec, int isJac) const {
 	// function to implement if mode_X = 1
 	fvec[stateID] = (X[stateID] - Xp[stateID]);
 	fvec[stateID + data->n] = (X[stateID + data->n] - Xp[stateID + data->n]);
 	if (stateID < 3) {
+		fvec[stateID + data->n] = (X[stateID + data->n] - Xp[stateID + data->n]) - data->parameters.invSigmaXwp*(X[stateID] - Xd[stateID]);
+	}
+	if (stateID >= 3 && stateID < 6) {
 		fvec[stateID + data->n] = (X[stateID + data->n] - Xp[stateID + data->n]) - data->parameters.invSigmaXwp*(X[stateID] - Xd[stateID]);
 	}
 };

@@ -30,6 +30,10 @@ public:
 		real Tinf;					///< duration patient is infectious
 		real Tinc;					///< incubation period
 		real N;						///< size of population
+		real Imax;					///< maximum Infectious permitted
+		real muI;					///< penalization coefficient to constrain Infectious
+		real umin;					///< minimum control
+		real umax;					///< maximum control
 	};
 
 	/**
@@ -59,7 +63,7 @@ private:
 	/**
 	* State model of the vehicle
 	*/
-	virtual mstate Model(real const& t, mstate const& X) const;
+	virtual mstate Model(real const& t, mstate const& X, int isJac = 0) const;
 
 	/**
 	* Control model of the vehicle
@@ -69,12 +73,12 @@ private:
 	/**
 	* Hamiltonian of the vehicle
 	*/
-	virtual real Hamiltonian(real const& t, mstate const& X) const;
+	virtual mstate Hamiltonian(real const& t, mstate const& X, int isJac = 0) const;
 
 	/**
 	* Integrate state equations with a RK4
 	*/
-	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace);
+	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac = 0);
 
 };
 

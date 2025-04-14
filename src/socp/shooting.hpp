@@ -132,9 +132,10 @@ public:
 	* @param ti initial time
 	* @param Xi initial state
 	* @param tf final time
+	* @param isJac a flag to set function/jacobian mode
 	* @return final state
 	*/
-	model::mstate Move(real const& ti, model::mstate const& Xi, real const& tf) const;
+	model::mstate Move(real const& ti, model::mstate const& Xi, real const& tf, int isJac = 0) const;
 
 	/**
 	* Function to move the model from ti to tf
@@ -142,22 +143,25 @@ public:
 	* @param Xi initial state
 	* @param tf final time
 	* @param Xf final state
+	* @param isJac a flag to set function/jacobian mode
 	*/
-	void Move(real const& ti, model::mstate const& Xi, real const& tf, model::mstate & Xf) const;
+	void Move(real const& ti, model::mstate const& Xi, real const& tf, model::mstate & Xf, int isJac = 0) const;
 
 	/**
 	* Function to move the model to tf using initial or previously solved solution and handling multiple shooting
 	* @param tf the final time
+	* @param isJac a flag to set function/jacobian mode
 	* @return the final state
 	*/
-	model::mstate Move(real const& tf) const;
+	model::mstate Move(real const& tf, int isJac = 0) const;
 
 	/**
 	* Function to move the model to tf using initial or previously solved solution and handling multiple shooting
 	* @param tf the final time
 	* @param Xf the final state
+	* @param isJac a flag to set function/jacobian mode
 	*/
-	void Move(real const& tf, model::mstate & Xf) const;
+	void Move(real const& tf, model::mstate & Xf, int isJac = 0) const;
 
 	/**
 	* Set relative tolerance for the solver
@@ -201,7 +205,7 @@ public:
 	* Get the number of calls to the function to be solved
 	* @return the number of calls to the function to be solved
 	*/
-	double GetCallNumber() const;
+	std::vector<int> GetCallNumber() const;
 
 	/**
 	* Trace in the specified file (in model) by handling multiple shooting
@@ -273,44 +277,84 @@ private:
 	* @param n the number of parameters
 	* @param param a pointer to the parameters
 	* @param fvec a pointer to the function values
-	* @param iflag an optional flag
+	* @param iflag a flag to choose hybrd or hybrj as solver
 	*/
 	static int StaticShootingFunction(void *userdata, int n, const real *param, real *fvec, int iflag);	
+
+	/**
+	* Static function-jacobian for the solver
+	* @param userdata a pointer to user data
+	* @param n the number of parameters
+	* @param param a pointer to the parameters
+	* @param fjac a pointer to the jacobian
+	* @param ldfjac an integer (leading dimension of the array fjac)
+	* @param iflag a flag to choose hybrd or hybrj as solver
+	*/
+	static int StaticShootingFunctionJacobian(void *userdata, int n, const real *param, real *fvec, real *fjac, int ldfjac, int iflag);
 	
 	/**
 	* Function to be solved
 	* @param n the number of parameters
 	* @param param a vector to the parameters
 	* @param fvec a pointer to the function values
-	* @param iflag a pointer to an optional flag
 	*/
-	void ShootingFunction(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const;
+	void ShootingFunction(int n, std::vector<real> const& param, std::vector<real> & fvec) const;
+
+	/**
+	* Function-jacobian to be solved
+	* @param n the number of parameters
+	* @param param a vector to the parameters
+	* @param fjac a pointer to the jacobian
+	*/
+	void ShootingFunctionJacobian(int n, std::vector<real> const& param, std::vector<real> & fjac) const;
 
 	/**
 	* Function to be solved using multithreading
 	* @param n a pointer to the number of parameters
 	* @param param a vector to the parameters
 	* @param fvec a pointer to the function values
-	* @param iflag a pointer to an optional flag
 	*/
-	void ShootingFunctionParallel(int n, std::vector<real> const& param, std::vector<real> & fvec, int iflag) const;
+	void ShootingFunctionParallel(int n, std::vector<real> const& param, std::vector<real> & fvec) const;
+
+	/**
+	* Function-jacobian to be solved using multithreading
+	* @param n a pointer to the number of parameters
+	* @param param a vector to the parameters
+	* @param fjac a pointer to the jacobian
+	*/
+	void ShootingFunctionJacobianParallel(int n, std::vector<real> const& param, std::vector<real> & fjac) const;
 	
 	/**
 	* Static function for shooting with multithreading
 	* @param arg a pointer to the arguments passed to the thread
 	*/
 	static void StaticShootingParallelFunction(void *arg);
+
+	/**
+	* Static function for shooting the jacobian with multithreading
+	* @param arg a pointer to the arguments passed to the thread
+	*/
+	static void StaticShootingParallelFunctionJacobian(void *arg);
 	
 	/**
 	* Compute a part of the shooting function on a single thread
 	* @param n the number of parameters
 	* @param param a pointer to the parameters
 	* @param fvec a pointer to the function values
-	* @param iflag a pointer to an optional flag
 	* @param threadNum thread number
 	* @param timeLine time vector considered by the thread
 	*/
 	void ShootingParallelFunctionThread(int n, real *param, real *fvec, int threadNum, std::vector<real> const& timeLine) const;
+
+	/**
+	* Compute a part of the shooting function-jacobian on a single thread
+	* @param n the number of parameters
+	* @param param a pointer to the parameters
+	* @param fjac a pointer to the jacobian
+	* @param threadNum thread number
+	* @param timeLine time vector considered by the thread
+	*/
+	void ShootingParallelFunctionJacobianThread(int n, real *param, real *fjac, int threadNum, std::vector<real> const& timeLine) const;
 	
 	/**
 	* Update solution
@@ -324,9 +368,10 @@ private:
 	* @param Xp the parameter state at t
 	* @param Xd the desired state at t
 	* @param mode_X the mode (free/fixed state)
-	* @param fvec a pointer to the values of the function
+	* @param fvec a pointer to the values of the function/jacobian
+	* @param isJac a flag to set function/jacobian mode
 	*/
-	void MultipleShootingFunction(real const& t, model::mstate const& X, model::mstate const& Xp, model::mstate const& Xd, std::vector<int> const& mode_X, model::mstate & fvec) const;
+	void MultipleShootingFunction(real const& t, model::mstate const& X, model::mstate const& Xp, model::mstate const& Xd, std::vector<int> const& mode_X, int mode_t, model::mstate & fvec, int isJac) const;
 
 	/**
 	* Compute timeline

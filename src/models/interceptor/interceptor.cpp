@@ -69,7 +69,7 @@ interceptor::~interceptor(){
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-interceptor::mstate interceptor::Model(real const& t, mstate const& X) const{
+interceptor::mstate interceptor::Model(real const& t, mstate const& X, int isJac) const{
 	if (data->currentChart==1){
 		return Model_1(t, X);
 	}else{
@@ -79,7 +79,7 @@ interceptor::mstate interceptor::Model(real const& t, mstate const& X) const{
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 interceptor::mstate interceptor::static_Model(real const& t, interceptor::mstate const& X, void *model){ // static model to be passed as an argument of the ODE solver
-	return static_cast<interceptor*>(model)->Model(t, X);
+	return static_cast<interceptor*>(model)->Model(t, X, 0);
 } 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -92,16 +92,16 @@ interceptor::mcontrol interceptor::Control(real const& t, mstate const& X) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-real interceptor::Hamiltonian(real const& t, mstate const& X) const{
+interceptor::mstate interceptor::Hamiltonian(real const& t, mstate const& X, int isJac) const{
 	if (data->currentChart==1){
-		return Hamiltonian_1(t, X);
+		return interceptor::mstate({ Hamiltonian_1(t, X) });
 	}else{
-		return Hamiltonian_2(t, X);
+		return interceptor::mstate({ Hamiltonian_2(t, X) });
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-interceptor::mstate interceptor::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace){
+interceptor::mstate interceptor::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac){
 	std::stringstream ss;
 	
 	real t = t0;							// time
@@ -135,7 +135,7 @@ void interceptor::Trace(real const& t, mstate const& X, std::stringstream & file
 	mstate control = Control(t,X);
 
 	// H is computed
-	real H = Hamiltonian(t, X);
+	mstate H = Hamiltonian(t, X, 0);
 
 	// write in trace file
 	file << t << "\t";
@@ -145,7 +145,7 @@ void interceptor::Trace(real const& t, mstate const& X, std::stringstream & file
 	for (int k=0;k<control.size(); k++){
 		file << control[k] << "\t";
 	}
-	file << H << "\t";
+	file << H[0] << "\t";
 
 	// additional trace
 	file << data->currentChart << std::endl;
@@ -162,7 +162,7 @@ interceptor::parameters_struct & interceptor::GetParameterData(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, real const& tf, int isTrace){
+interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, real const& tf, int isTrace, int isJac){
 	// initialize chart (X0 is in chart 1 by default)
 	data->currentChart=1;
 
@@ -184,9 +184,9 @@ interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, r
 			//mode = 1;				// mode=1 (propulsion), mode=0 (no propulsion)
 			data->stageMode = 1;
 			if (tf>t1){
-				X1 = ModelInt(t0,X_t0,t1,isTrace);
+				X1 = ModelInt(t0, X_t0, t1, isTrace, isJac);
 			}else{
-				X_tf = ModelInt(t0,X_t0,tf,isTrace);
+				X_tf = ModelInt(t0,X_t0,tf,isTrace, isJac);
 				break;
 			}
 
@@ -196,7 +196,7 @@ interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, r
 			// integrate from t1 to tf
 			//mode = 0;
 			data->stageMode = 0;
-			X_tf = ModelInt(t1,X1,tf,isTrace);
+			X_tf = ModelInt(t1,X1,tf,isTrace, isJac);
 			break;
 		case 1 :
 			//****************************************************************//
@@ -205,7 +205,7 @@ interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, r
     		// integrate from t0 to tf
 			//mode = 0;
 			data->stageMode = 0;
-			X_tf = ModelInt(t0,X_t0,tf,isTrace);
+			X_tf = ModelInt(t0,X_t0,tf,isTrace, isJac);
 			break;
 
 		//default : /* Optional */
@@ -220,7 +220,7 @@ interceptor::mstate interceptor::ComputeTraj(real const& t0, mstate const& X0, r
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-void interceptor::FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const{
+void interceptor::FinalFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const{
 	// Compute the function to solve
 	for (int j = 0; j<data->n; j++) {
 		if (mode_X[j] == 1) {
@@ -245,7 +245,7 @@ void interceptor::FinalFunction(real const& tf, mstate const& X_tf, mstate const
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-void interceptor::FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec) const{
+void interceptor::FinalHFunction(real const& tf, mstate const& X_tf, mstate const& Xf, std::vector<int> const& mode_X, std::vector<real> & fvec, int isJac) const{
 	// Compute the function to solve
 	for (int j = 0; j<data->n; j++) {
 		if (mode_X[j] == 1) {
@@ -267,7 +267,7 @@ void interceptor::FinalHFunction(real const& tf, mstate const& X_tf, mstate cons
 		}
 	}
 
-	fvec[data->n] = Hamiltonian(tf,X_tf) + data->parameters.muT; // X here since data->currentChart has not changed !
+	fvec[data->n] = Hamiltonian(tf,X_tf, isJac)[0] + data->parameters.muT; // X here since data->currentChart has not changed !
 
 };
 

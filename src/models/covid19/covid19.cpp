@@ -29,8 +29,12 @@ covid19::covid19(std::string the_fileTrace) : model(4) {
 	data->n = dim;									// state dimension
 		data->parameters.R0 = 4;					// the number of secondary infections each infected individual produces
 		data->parameters.Tinf = 10;					// duration patient is infectious
-		data->parameters.Tinc = 5;				// incubation period
+		data->parameters.Tinc = 5;					// incubation period
 		data->parameters.N = 1;						// size of population (= 1 if normalized))
+		data->parameters.Imax = 0.1;				// maximum Infectious permitted
+		data->parameters.muI = 1;					// penalization coefficient to constrain Infectious
+		data->parameters.umin = -10;				// minimum control
+		data->parameters.umax = 20;					// maximum control
 	data->stepNbr = 1000;							// step number for ModelInt
 	data->strFileTrace = the_fileTrace;				// trace file
 
@@ -46,7 +50,7 @@ covid19::~covid19() {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-covid19::mstate covid19::Model(real const& t, mstate const& X) const {
+covid19::mstate covid19::Model(real const& t, mstate const& X, int isJac) const {
 	mstate Xdot(X.size());
 
 	// current state and costate value
@@ -63,10 +67,18 @@ covid19::mstate covid19::Model(real const& t, mstate const& X) const {
 	real Tinf = data->parameters.Tinf;
 	real Tinc = data->parameters.Tinc;
 	real N = data->parameters.N;
+	real Imax = data->parameters.Imax;
+	real muI = data->parameters.muI;
 
 	// control computation
 	mcontrol u = Control(t, X);
 	real Rt = R0 * (1 - u[0]);
+
+	// penalization for I
+	real Ipen = 0;
+	if (I >= Imax) {
+		Ipen = -muI*(I - Imax);
+	}
 
 	// state and costate equations from SEIR model
 	Xdot[0] = -Rt / Tinf / N*S*I;
@@ -75,7 +87,7 @@ covid19::mstate covid19::Model(real const& t, mstate const& X) const {
 	Xdot[3] = I / Tinf;
 	Xdot[4] = (pS - pE)*R*I / Tinf / N;
 	Xdot[5] = (pE - pI) / Tinc;
-	Xdot[6] = (pS - pE)*R*S / Tinf / N + (pI - pR) / Tinf;
+	Xdot[6] = (pS - pE)*R*S / Tinf / N + (pI - pR) / Tinf + Ipen;
 	Xdot[7] = 0;
 
 	return Xdot;
@@ -104,12 +116,20 @@ covid19::mcontrol covid19::Control(real const& t, mstate const& X) const {
 	// optimal control
 	control[0] = (pE - pS)*S*I / Tinf / N * R0; 
 
+	// saturation 
+	if (control[0] <= data->parameters.umin) {
+		control[0] = data->parameters.umin;
+	}
+	if (control[0] >= data->parameters.umax) {
+		control[0] = data->parameters.umax;
+	}
+
 	return control;
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-real covid19::Hamiltonian(real const& t, mstate const& X) const {
+covid19::mstate covid19::Hamiltonian(real const& t, mstate const& X, int isJac) const {
 	// current state and costate value
 	real S = X[0];
 	real E = X[1];
@@ -124,23 +144,31 @@ real covid19::Hamiltonian(real const& t, mstate const& X) const {
 	real Tinf = data->parameters.Tinf;
 	real Tinc = data->parameters.Tinc;
 	real N = data->parameters.N;
+	real Imax = data->parameters.Imax;
+	real muI = data->parameters.muI;
 
 	// control computation
 	mcontrol u = Control(t, X);
 	real Rt = R0 * (1 - u[0]);
 
+	// penalization for I
+	real Ipen = 0;
+	if (I >= Imax) {
+		Ipen = muI*(I - Imax)*(I - Imax) / 2;
+	}
+
 	// H is computed
-	real H = u[0]*u[0] / 2
+	real H = u[0]*u[0] / 2 + Ipen
 		+ pS * (-Rt / Tinf / N*S*I)
 		+ pE * (Rt / Tinf / N*S*I - E / Tinc)
 		+ pI * (E / Tinc - I / Tinf)
 		+ pR * (I / Tinf);
 
-	return H;
+	return mstate({ H });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-covid19::mstate covid19::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace) {
+covid19::mstate covid19::ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac) {
 	std::stringstream ss;
 
 	real t = t0;							// time
@@ -148,7 +176,7 @@ covid19::mstate covid19::ModelInt(real const& t0, mstate const& X, real const& t
 	mstate Xs = X;
 
 	if (isTrace) {
-		integrate(modelStruct(this), Xs, t0, tf, dt, observerStruct(this, ss));
+		integrate(modelStruct(this, isJac), Xs, t0, tf, dt, observerStruct(this, ss));
 		// write in trace file
 		std::ofstream fileTrace;
 		fileTrace.open(data->strFileTrace.c_str(), std::ios::app);
@@ -156,7 +184,7 @@ covid19::mstate covid19::ModelInt(real const& t0, mstate const& X, real const& t
 		fileTrace.close();
 	}
 	else {
-		integrate(modelStruct(this), Xs, t0, tf, dt);
+		integrate(modelStruct(this, isJac), Xs, t0, tf, dt);
 	}
 
 	return Xs;

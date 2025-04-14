@@ -49,7 +49,7 @@ public:
 	/**
 	* Switching function 
 	*/
-	virtual real SwitchingTimesFunction(real const& t, mstate const& X) const;
+	virtual mstate SwitchingTimesFunction(real const& t, mstate const& X, mstate const& Xp, int isJac) const;
 
 	/**
 	* Update Switching times
@@ -81,7 +81,7 @@ private:
 	/**
 	* State model of the vehicle
 	*/
-	virtual mstate Model(real const& t, mstate const& X) const;
+	virtual mstate Model(real const& t, mstate const& X, int isJac) const;
 
 	/**
 	* Control model of the vehicle
@@ -91,12 +91,12 @@ private:
 	/**
 	* Hamiltonian of the vehicle
 	*/
-	virtual real Hamiltonian(real const& t, mstate const& X) const;
+	virtual mstate Hamiltonian(real const& t, mstate const& X, int isJac) const;
 
 	/**
 	* Integrate state equations with a RK4
 	*/
-	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace);
+	virtual mstate ModelInt(real const& t0, mstate const& X, real const& tf, int isTrace, int isJac);
 
 	/**
 	* Trace state

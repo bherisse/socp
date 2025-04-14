@@ -30,12 +30,13 @@ public:
 	struct modelStruct
 	{
 		odeTools* m_ode;
+		int m_isJac;
 
-		modelStruct(odeTools* ode) : m_ode(ode) { }
+		modelStruct(odeTools* ode, int isJac) : m_ode(ode), m_isJac(isJac) { }
 
 		virtual void operator()(odeVector const& X, odeVector& dXdt, real const& t) const
 		{
-			dXdt = m_ode->Model(t, X);
+			dXdt = m_ode->Model(t, X, m_isJac);
 		}
 	};
 
@@ -75,9 +76,10 @@ public:
 	* State model of the vehicle : dX/dt = Model(t, X)
 	* @param t the time
 	* @param X the state
+	* @param isJac a flag
 	* @return dX/dt as a model state
 	*/
-	virtual odeVector Model(real const& t, odeVector const& X) const = 0;
+	virtual odeVector Model(real const& t, odeVector const& X, int isJac = 0) const = 0;
 
 	/**
 	* Trace state

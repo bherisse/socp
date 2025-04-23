@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0)
+cmake_minimum_required(VERSION 3.10)
 
 # SOCP project
 project(SOCP)
@@ -7,11 +7,20 @@ set(SOCP_VERSION 0.1.0)
 set(SOCP_INCLUDE_INSTALL_DIR "include/${PROJECT_NAME_LOWER}")
 set(SOCP_LIB_INSTALL_DIR "lib")
 
-if(POLICY CMP0078)
+if(POLICY CMP0078) 	# SWIG
   cmake_policy(SET CMP0078 NEW)
 endif()
-if(POLICY CMP0086)
+if(POLICY CMP0086)	# SWIG
   cmake_policy(SET CMP0086 NEW)
+endif()
+if(POLICY CMP0135)	# DOWNLOAD_EXTRACT_TIMESTAMP dans externalproject_add()
+  cmake_policy(SET CMP0135  NEW)
+endif()
+if(POLICY CMP0148)	# Python
+  cmake_policy(SET CMP0148 OLD)
+endif()
+if(POLICY CMP0167)	# Boost
+  cmake_policy(SET CMP0167 OLD)
 endif()
 
 # Set the CMake module path
@@ -35,13 +44,13 @@ if (WIN32)
 	add_definitions(-D_USE_MATH_DEFINES)
 endif (WIN32)
 
-if(UNIX)
-	if( NOT CMAKE_BUILD_TYPE )
-	  set( CMAKE_BUILD_TYPE Release CACHE STRING
-	       "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
-	       FORCE )
-	endif()
-	
+if( NOT CMAKE_BUILD_TYPE )
+	set( CMAKE_BUILD_TYPE Release CACHE STRING
+	    "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+	    FORCE )
+endif()
+
+if(UNIX)	
 	SET(GCC_11_COMPILE_FLAGS "-std=gnu++11")
 	SET(ENABLE_MULTITHREADING_COMPILE_FLAGS "-pthread")
 	#SET(GCC_FPERMISSIVE_COMPILE_FLAGS "-fpermissive")

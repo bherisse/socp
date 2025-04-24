@@ -41,4 +41,4 @@ build_script:
 test_script:
   
   # Perform tests
-  - ../binaries/Release/Release/testGoddard
+  - ../binaries/Release/testGoddard

@@ -44,13 +44,12 @@ if (WIN32)
 	add_definitions(-D_USE_MATH_DEFINES)
 endif (WIN32)
 
-if( NOT CMAKE_BUILD_TYPE )
-	set( CMAKE_BUILD_TYPE Release CACHE STRING
-	    "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
-	    FORCE )
-endif()
-
 if(UNIX)	
+	if( NOT CMAKE_BUILD_TYPE )
+		set( CMAKE_BUILD_TYPE Release CACHE STRING
+			"Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+			FORCE )
+	endif()
 	SET(GCC_11_COMPILE_FLAGS "-std=gnu++11")
 	SET(ENABLE_MULTITHREADING_COMPILE_FLAGS "-pthread")
 	#SET(GCC_FPERMISSIVE_COMPILE_FLAGS "-fpermissive")

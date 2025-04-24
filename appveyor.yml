@@ -33,7 +33,12 @@ build_script:
   - make CMinPack
 
   # Configure again to find CMinPack Libraries
-  - cmake ..
+  - cmake -DBUILD_GODDARD:BOOL=ON -DBUILD_TESTING:BOOL=ON ..
 
    # Perform the build for socp
   - make
+
+test_script:
+  
+  # Perform tests
+  - ../binaries/Release/Release/testGoddard

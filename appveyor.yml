@@ -1,15 +1,32 @@
-# Enable C++ support
-language: cpp
+version: 1.0.{build}
+environment:
+  matrix:
+  - job_name: Ubuntu 16 and GCC 5
+    APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu1604
+platform:
+  - x64
+for:
+  - matrix:
+      only:
+        - job_name: Ubuntu 16 and GCC 5
+    environment:
+      GCC_VERSION: 5
 
-# Compiler selection
-compiler:
-  - gcc
-  
-# Build steps
-script:
+build_script:
+  # Create build dir
   - mkdir build
+
+  # Change directory to build dir
   - cd build
+
+  # Configure to build
   - cmake ..
+
+  # Perform the build for CMinPack
   - make CMinPack
+
+  # Configure again to find CMinPack Libraries
   - cmake ..
+
+   # Perform the build for socp
   - make

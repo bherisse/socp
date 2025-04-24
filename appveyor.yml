@@ -3,6 +3,8 @@ environment:
   matrix:
   - job_name: Ubuntu 16 and GCC 5
     APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu1604
+  - job_name: Ubuntu 18 and GCC 7
+    APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu1804
 platform:
   - x64
 for:
@@ -11,6 +13,11 @@ for:
         - job_name: Ubuntu 16 and GCC 5
     environment:
       GCC_VERSION: 5
+  - matrix:
+      only:
+        - job_name: Ubuntu 18 and GCC 7
+    environment:
+      GCC_VERSION: 7
 
 build_script:
   # Create build dir
